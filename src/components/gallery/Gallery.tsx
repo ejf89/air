@@ -321,7 +321,7 @@ export function Gallery({
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       {/* Top app bar: brand left, search centered — like the reference. */}
-      <div className="sticky top-0 z-30 bg-neutral-100/90 backdrop-blur">
+      <div className="sticky top-0 z-30 bg-neutral-100">
         <div className="mx-auto flex h-14 max-w-[1500px] items-center gap-3 px-4 sm:gap-6 sm:px-6 lg:px-8">
           <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2.5">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-900 text-[13px] font-bold italic text-white">

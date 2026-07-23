@@ -91,7 +91,7 @@ export function AssetGrid({
   const rowVirtualizer = useWindowVirtualizer({
     count: rows.length,
     estimateSize: (i) => (rows[i]?.height ?? TARGET_ROW_HEIGHT) + GAP,
-    overscan: 5,
+    overscan: 3,
     scrollMargin,
   });
 
@@ -215,7 +215,7 @@ export function AssetGrid({
                       width={tile.displayWidth}
                       height={tile.displayHeight}
                       reorderable={!serverMode}
-                      eager={virtualRow.index < 2}
+                      eager={virtualRow.index < 1}
                     />
                   </div>
                 );
