@@ -8,8 +8,8 @@ import { useGalleryStore } from "@/lib/store";
 import { computeJustifiedRows } from "@/lib/justifiedLayout";
 import { AssetTile } from "./AssetTile";
 
-const TARGET_ROW_HEIGHT = 200;
-const GAP = 8;
+const TARGET_ROW_HEIGHT = 300;
+const GAP = 20;
 
 export interface AssetGridProps {
   boardId: string;
@@ -156,13 +156,19 @@ export function AssetGrid({ boardId, queryOptions, emptyMessage }: AssetGridProp
       return;
     }
     // Snapshot the selection so the shift+lasso adds to it instead of
-    // replacing it.
+    // replacing it. Selected tiles carry data-draggable="true" (they're
+    // drag handles), which blocks the selection library — flip the pressed
+    // one off for the duration of the gesture so shift+drag can lasso from
+    // anywhere. Restore to its original value (selection state may change
+    // mid-gesture).
     shiftLassoBaseRef.current = useGalleryStore.getState().selectedIds;
-    const tile = (e.target as HTMLElement).closest<HTMLElement>('[data-draggable]');
+    const tile = (e.target as HTMLElement).closest<HTMLElement>('[data-draggable="true"]');
     if (!tile) return;
     tile.dataset.draggable = "false";
     const restore = () => {
-      tile.dataset.draggable = "true";
+      const id = tile.dataset.assetId;
+      tile.dataset.draggable =
+        id && useGalleryStore.getState().selectedSet.has(id) ? "true" : "false";
       window.removeEventListener("pointerup", restore);
       window.removeEventListener("pointercancel", restore);
     };
@@ -222,6 +228,7 @@ export function AssetGrid({ boardId, queryOptions, emptyMessage }: AssetGridProp
                       width={tile.displayWidth}
                       height={tile.displayHeight}
                       reorderable={!serverMode}
+                      eager={virtualRow.index < 2}
                     />
                   </div>
                 );

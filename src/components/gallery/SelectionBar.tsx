@@ -68,12 +68,6 @@ export function SelectionBar({ boardTitle }: SelectionBarProps): JSX.Element | n
               <DropdownMenu.Item className={MENU_ITEM_CLASS} onSelect={shareLink}>
                 Share a link
               </DropdownMenu.Item>
-              <DropdownMenu.Item
-                className={MENU_ITEM_CLASS}
-                onSelect={() => window.open("https://air.inc/signup", "_blank", "noopener,noreferrer")}
-              >
-                Copy to Air workspace
-              </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>

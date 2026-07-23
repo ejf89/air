@@ -33,14 +33,6 @@ function LinkIcon() {
     </svg>
   );
 }
-function CopyIcon() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 20 20" fill="none" className="shrink-0 text-neutral-700">
-      <rect x="7" y="7" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M13 7V5.5A1.5 1.5 0 0 0 11.5 4h-6A1.5 1.5 0 0 0 4 5.5v6A1.5 1.5 0 0 0 5.5 13H7" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  );
-}
 function DownloadIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 20 20" fill="none" className="shrink-0 text-neutral-700">
@@ -98,23 +90,18 @@ function useAssetMenuLogic(assetId: string) {
     }
   }, [getTargets]);
 
-  const handleCopyToWorkspace = React.useCallback(() => {
-    // Same as the reference public board: prompts you into Air itself.
-    window.open("https://air.inc/signup", "_blank", "noopener,noreferrer");
-  }, []);
-
   const handleDownload = React.useCallback(() => {
     downloadAssets(getTargets());
   }, [getTargets]);
 
-  return { isInSelection, count, handleOpen, handleShareLink, handleCopyToWorkspace, handleDownload };
+  return { isInSelection, count, handleOpen, handleShareLink, handleDownload };
 }
 
 interface MenuBodyProps extends ReturnType<typeof useAssetMenuLogic> {
   Item: typeof ContextMenu.Item | typeof DropdownMenu.Item;
 }
 
-function MenuBody({ Item, isInSelection, count, handleOpen, handleShareLink, handleCopyToWorkspace, handleDownload }: MenuBodyProps) {
+function MenuBody({ Item, isInSelection, count, handleOpen, handleShareLink, handleDownload }: MenuBodyProps) {
   const suffix = isInSelection ? ` ${count} assets` : "";
   return (
     <>
@@ -126,9 +113,6 @@ function MenuBody({ Item, isInSelection, count, handleOpen, handleShareLink, han
       ) : null}
       <Item className={MENU_ITEM_CLASS} onSelect={handleShareLink}>
         <LinkIcon /> Share a link
-      </Item>
-      <Item className={MENU_ITEM_CLASS} onSelect={handleCopyToWorkspace}>
-        <CopyIcon /> Copy to Air workspace
       </Item>
       <Item className={MENU_ITEM_CLASS} onSelect={handleDownload}>
         <DownloadIcon /> Download{suffix}

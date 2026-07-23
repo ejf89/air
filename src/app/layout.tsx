@@ -16,6 +16,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://api.air.inc" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://air-prod.imgix.net" />
+      </head>
       <body className={inter.className}>
         <Providers>{children}</Providers>
       </body>

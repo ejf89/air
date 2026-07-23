@@ -25,9 +25,11 @@ const BOARD_DROP_PREFIX = "board-drop-";
 const ASSET_DROP_PREFIX = "asset-drop-";
 
 /**
- * PointerSensor that ignores shift/cmd-modified presses: shift+drag is the
- * lasso gesture (see AssetGrid), and cmd+click toggles selection — neither
- * should ever start an asset drag.
+ * Air's interaction model, enforced from the dnd side: a drag only starts
+ * on an already-SELECTED tile. Dragging anywhere else — empty space or an
+ * unselected tile — is a rubber-band selection (the tile's data-draggable
+ * attribute mirrors the same rule for react-drag-to-select). Modified
+ * presses (shift = additive lasso, cmd/ctrl = toggle-select) never drag.
  */
 class GalleryPointerSensor extends PointerSensor {
   static activators = [
@@ -36,7 +38,10 @@ class GalleryPointerSensor extends PointerSensor {
       handler: ({ nativeEvent }: React.PointerEvent): boolean => {
         if (!nativeEvent.isPrimary || nativeEvent.button !== 0) return false;
         if (nativeEvent.shiftKey || nativeEvent.metaKey || nativeEvent.ctrlKey) return false;
-        return true;
+        const tile = (nativeEvent.target as HTMLElement).closest<HTMLElement>("[data-asset-id]");
+        if (!tile) return false;
+        const id = tile.dataset.assetId;
+        return id ? useGalleryStore.getState().selectedSet.has(id) : false;
       },
     },
   ];
@@ -61,13 +66,6 @@ export function Gallery(): JSX.Element {
 
   const rootTitle =
     boards.find((b) => b.ancestors?.length)?.ancestors?.[0]?.title ?? "Gallery";
-
-  // Board panels the user has expanded (from the card / its menu).
-  const expandedMap = useGalleryStore((s) => s.expanded);
-  const openBoards = React.useMemo(
-    () => rootChildren.filter((b) => expandedMap[b.id]),
-    [rootChildren, expandedMap]
-  );
 
   const reorder = useGalleryStore((s) => s.reorder);
   const moveManyToBoard = useGalleryStore((s) => s.moveManyToBoard);
@@ -156,24 +154,9 @@ export function Gallery(): JSX.Element {
     [reorder, moveManyToBoard]
   );
 
-  if (isLoading) {
-    return (
-      <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mb-6 h-8 w-64 animate-pulse rounded bg-neutral-100" />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="aspect-[16/10] animate-pulse rounded-lg bg-neutral-100" />
-          ))}
-        </div>
-        <div className="mt-8 grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-7">
-          {Array.from({ length: 14 }).map((_, i) => (
-            <div key={i} className="aspect-square animate-pulse rounded-md bg-neutral-100" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
+  // NOTE: no early return while the board tree loads — the assets wall
+  // fetches independently and must not be serialized behind the boards
+  // BFS (it's the LCP content). The boards section shows its own skeleton.
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
@@ -205,37 +188,19 @@ export function Gallery(): JSX.Element {
           </Section>
         ) : (
           <>
-            {rootChildren.length ? (
-              <Section storeKey="section:boards" title="Boards" count={rootChildren.length}>
-                <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                  {rootChildren.map((b) => (
-                    <BoardCard key={b.id} board={b} />
-                  ))}
-                </div>
-
-                {openBoards.map((b) => (
-                  <div key={b.id} className="mb-4 rounded-xl border border-neutral-200/70 p-3">
-                    <div className="mb-2 flex items-center justify-between px-1">
-                      <h3 className="text-sm font-semibold text-neutral-800">{b.title}</h3>
-                      <button
-                        type="button"
-                        onClick={() => useGalleryStore.getState().toggleExpanded(b.id)}
-                        className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
-                        aria-label={`Collapse ${b.title}`}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                          <path d="M3.5 3.5l7 7m0-7l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        </svg>
-                      </button>
-                    </div>
-                    <AssetGrid
-                      boardId={b.id}
-                      queryOptions={serverMode ? { sortField: serverSort, serverMode } : undefined}
-                    />
-                  </div>
-                ))}
-              </Section>
-            ) : null}
+            <Section
+              storeKey="section:boards"
+              title="Boards"
+              count={rootChildren.length || undefined}
+            >
+              <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                {isLoading
+                  ? Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="aspect-[16/10] animate-pulse rounded-xl bg-neutral-100" />
+                    ))
+                  : rootChildren.map((b) => <BoardCard key={b.id} board={b} />)}
+              </div>
+            </Section>
 
             <Section storeKey="section:assets" title="Assets">
               <AssetGrid

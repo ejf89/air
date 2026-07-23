@@ -17,6 +17,9 @@ export interface AssetTileProps {
   /** False in server-driven views (search / explicit sort), where manual
    *  reordering doesn't apply — the tile stops being a drop target. */
   reorderable?: boolean;
+  /** True for above-the-fold rows: loads the image eagerly at high priority
+   *  instead of lazily, so the LCP image isn't queued behind lazy-loading. */
+  eager?: boolean;
 }
 
 // ---- small module-level pieces (never recreated per render) ---------------
@@ -56,8 +59,28 @@ function PlayIcon(): JSX.Element {
   );
 }
 
+/** The one live <video> in the app (single-slot, see hoveredAssetId).
+ *  Hidden until the first frame actually plays, then faded in over the
+ *  still-mounted poster — no black flash while the preview buffers. */
+function HoverPreview({ src }: { src: string }): JSX.Element {
+  const [ready, setReady] = React.useState(false);
+  return (
+    <video
+      src={src}
+      muted
+      autoPlay
+      loop
+      playsInline
+      onPlaying={() => setReady(true)}
+      className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${
+        ready ? "opacity-100" : "opacity-0"
+      }`}
+    />
+  );
+}
+
 function AssetTileImpl(props: AssetTileProps): JSX.Element {
-  const { asset, order, width, height, reorderable = true } = props;
+  const { asset, order, width, height, reorderable = true, eager = false } = props;
 
   // Derived-boolean selectors (not the raw `selectedIds` array reference) so
   // zustand only re-renders THIS tile when its own membership/hover state
@@ -139,9 +162,15 @@ function AssetTileImpl(props: AssetTileProps): JSX.Element {
     <AssetContextMenu assetId={asset.id}>
       <div
         ref={setRefs}
-        data-draggable="true"
-        className={`group relative overflow-hidden rounded-md bg-neutral-100 select-none ${
-          isSelected ? "ring-2 ring-inset ring-blue-500" : ""
+        // Air's interaction model: rubber-band select starts anywhere —
+        // including on tiles — and only an already-SELECTED tile drags
+        // assets. data-draggable="true" blocks the selection library, so it
+        // must reflect selection state; the dnd sensor applies the same rule
+        // from the other side (see GalleryPointerSensor).
+        data-draggable={isSelected ? "true" : "false"}
+        data-asset-id={asset.id}
+        className={`group relative overflow-hidden rounded-lg bg-neutral-100 select-none ${
+          isSelected ? "cursor-grab ring-2 ring-inset ring-blue-500 active:cursor-grabbing" : ""
         }`}
         style={style}
         onClick={handleClick}
@@ -154,25 +183,18 @@ function AssetTileImpl(props: AssetTileProps): JSX.Element {
           <div className="pointer-events-none absolute left-0 top-0 bottom-0 z-20 w-[3px] bg-blue-500" />
         ) : null}
 
-        {isHoveredVideo ? (
-          <video
-            src={asset.assets.previewVideo}
-            muted
-            autoPlay
-            loop
-            playsInline
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <img
-            src={imgixThumb(asset.assets.image, width, height)}
-            alt={asset.title ?? asset.importedName ?? ""}
-            className="w-full h-full object-cover"
-            loading="lazy"
-            decoding="async"
-            draggable={false}
-          />
-        )}
+        {/* Poster stays mounted under the video so hover-preview fades in
+            from the poster instead of flashing a black loading frame. */}
+        <img
+          src={imgixThumb(asset.assets.image, width, height)}
+          alt={asset.title ?? asset.importedName ?? ""}
+          className="w-full h-full object-cover"
+          loading={eager ? "eager" : "lazy"}
+          fetchPriority={eager ? "high" : undefined}
+          decoding="async"
+          draggable={false}
+        />
+        {isHoveredVideo ? <HoverPreview src={asset.assets.previewVideo!} /> : null}
 
         {asset.type === "video" && !isHoveredVideo ? (
           <>
