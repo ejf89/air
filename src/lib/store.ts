@@ -32,7 +32,6 @@ interface GalleryState {
   deleteAssets: (assetIds: string[]) => void;
 
   toggleExpanded: (boardId: string, defaultValue?: boolean) => void;
-  isExpanded: (boardId: string, defaultValue: boolean) => boolean;
 
   setHovered: (id: string | null) => void;
   select: (id: string) => void;
@@ -46,7 +45,7 @@ const sel = (ids: string[]) => ({ selectedIds: ids, selectedSet: new Set(ids) })
 
 export const useGalleryStore = create<GalleryState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       assetById: {},
       orderByBoard: {},
       boardOverrides: {},
@@ -165,7 +164,6 @@ export const useGalleryStore = create<GalleryState>()(
         set((state) => ({
           expanded: { ...state.expanded, [boardId]: !(state.expanded[boardId] ?? defaultValue) },
         })),
-      isExpanded: (boardId, defaultValue) => get().expanded[boardId] ?? defaultValue,
 
       setHovered: (id) => set({ hoveredAssetId: id }),
 
