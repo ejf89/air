@@ -24,6 +24,7 @@ import { Section } from "./Section";
 import { SelectionBar } from "./SelectionBar";
 import { Toast } from "./Toast";
 import { SearchBox, SortControls, type SortMode } from "./Toolbar";
+import { boardHref, type Crumb } from "./BoardMenu";
 
 const BOARD_DROP_PREFIX = "board-drop-";
 const ASSET_DROP_PREFIX = "asset-drop-";
@@ -57,6 +58,9 @@ export interface GalleryProps {
   boardId?: string;
   /** Title carried through navigation so the header paints instantly. */
   title?: string;
+  /** Navigation path (root → parent) carried through links — the ancestry
+   *  fallback for leaf boards, which the API can't report ancestors for. */
+  navPath?: Crumb[];
   /** Server-fetched (ISR) first payloads — see app/page.tsx. */
   initialBoards?: BoardsListResponse;
   initialAssets?: ClipsListResponse;
@@ -65,6 +69,7 @@ export interface GalleryProps {
 export function Gallery({
   boardId = ROOT_BOARD_ID,
   title,
+  navPath,
   initialBoards,
   initialAssets,
 }: GalleryProps): JSX.Element {
@@ -99,19 +104,27 @@ export function Gallery({
     ancestorChain?.find((a) => a.id === boardId)?.title ??
     (isRoot ? "Air Branded Boards" : "Board");
 
-  // Path above the current board, for the breadcrumb row. Empty for the
-  // root and for childless boards loaded directly (no chain available).
+  // Path above the current board, for the breadcrumb row: the API's
+  // ancestor chain is the source of truth when this board has children;
+  // otherwise the path the user navigated through (carried in the URL).
   const breadcrumbs = React.useMemo(() => {
-    if (isRoot || !ancestorChain) return [];
-    return ancestorChain.filter((a) => a.id !== boardId);
-  }, [isRoot, ancestorChain, boardId]);
+    if (isRoot) return [];
+    if (ancestorChain) return ancestorChain.filter((a) => a.id !== boardId);
+    return navPath ?? [];
+  }, [isRoot, ancestorChain, boardId, navPath]);
+
+  // What children of this board inherit as THEIR path.
+  const childPath = React.useMemo(
+    () => [...breadcrumbs, { id: boardId, title: boardTitle }],
+    [breadcrumbs, boardId, boardTitle]
+  );
 
   // Back target = immediate parent (last breadcrumb); root as fallback.
   const parent = breadcrumbs[breadcrumbs.length - 1];
   const parentHref =
     !parent || parent.id === ROOT_BOARD_ID
       ? "/"
-      : `/b/${parent.id}?title=${encodeURIComponent(parent.title)}`;
+      : boardHref(parent.id, parent.title, breadcrumbs.slice(0, -1));
 
   const reorder = useGalleryStore((s) => s.reorder);
   const moveManyToBoard = useGalleryStore((s) => s.moveManyToBoard);
@@ -313,7 +326,11 @@ export function Gallery({
                 <React.Fragment key={crumb.id}>
                   {i > 0 ? <span className="text-neutral-300">/</span> : null}
                   <Link
-                    href={crumb.id === ROOT_BOARD_ID ? "/" : `/b/${crumb.id}?title=${encodeURIComponent(crumb.title)}`}
+                    href={
+                      crumb.id === ROOT_BOARD_ID
+                        ? "/"
+                        : boardHref(crumb.id, crumb.title, breadcrumbs.slice(0, i))
+                    }
                     className="max-w-[180px] truncate rounded px-1 py-0.5 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
                   >
                     {crumb.title}
@@ -371,7 +388,7 @@ export function Gallery({
                     ? Array.from({ length: 4 }).map((_, i) => (
                         <div key={i} className="aspect-[16/10] animate-pulse rounded-xl bg-neutral-100" />
                       ))
-                    : childBoards.map((b) => <BoardCard key={b.id} board={b} />)}
+                    : childBoards.map((b) => <BoardCard key={b.id} board={b} path={childPath} />)}
                 </div>
               </Section>
             ) : null}

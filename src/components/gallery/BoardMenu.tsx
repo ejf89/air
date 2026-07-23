@@ -10,18 +10,28 @@ import { MENU_CONTENT_CLASS, MENU_ITEM_CLASS, EllipsisIcon } from "./AssetMenu";
 export interface BoardMenuProps {
   boardId: string;
   boardTitle: string;
+  /** Navigation path from root down to (excluding) this board. */
+  path: Crumb[];
   children: React.ReactNode;
 }
 
 const MENU_SEPARATOR_CLASS = "mx-1.5 my-1 h-px bg-neutral-200";
 
-/** In-app route for a board's own gallery view. The title rides along so
- *  the destination header paints without waiting for a fetch. */
-export function boardHref(boardId: string, boardTitle: string) {
-  return `/b/${boardId}?title=${encodeURIComponent(boardTitle)}`;
+export interface Crumb {
+  id: string;
+  title: string;
 }
 
-function useBoardMenuLogic(boardId: string, boardTitle: string) {
+/** In-app route for a board's gallery view. Title AND the navigation path
+ *  ride along, so breadcrumbs/back work even on leaf boards where the API
+ *  can't tell us the ancestry (it only comes back on boards WITH children). */
+export function boardHref(boardId: string, boardTitle: string, path: Crumb[] = []) {
+  const params = new URLSearchParams({ title: boardTitle });
+  if (path.length) params.set("path", JSON.stringify(path));
+  return `/b/${boardId}?${params.toString()}`;
+}
+
+function useBoardMenuLogic(boardId: string, boardTitle: string, path: Crumb[]) {
   const router = useRouter();
   const selectionCount = useGalleryStore((s) => s.selectedIds.length);
   const moveManyToBoard = useGalleryStore((s) => s.moveManyToBoard);
@@ -38,8 +48,8 @@ function useBoardMenuLogic(boardId: string, boardTitle: string) {
   }, [moveManyToBoard, boardId, boardTitle]);
 
   const handleOpen = React.useCallback(
-    () => router.push(boardHref(boardId, boardTitle)),
-    [router, boardId, boardTitle]
+    () => router.push(boardHref(boardId, boardTitle, path)),
+    [router, boardId, boardTitle, path]
   );
 
   return { selectionCount, moveLabel, handleMoveSelectionHere, handleOpen };
@@ -68,8 +78,8 @@ function MenuBody({ Item, Separator, selectionCount, moveLabel, handleMoveSelect
   );
 }
 
-export function BoardContextMenu({ boardId, boardTitle, children }: BoardMenuProps): JSX.Element {
-  const logic = useBoardMenuLogic(boardId, boardTitle);
+export function BoardContextMenu({ boardId, boardTitle, path, children }: BoardMenuProps): JSX.Element {
+  const logic = useBoardMenuLogic(boardId, boardTitle, path);
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
@@ -82,8 +92,8 @@ export function BoardContextMenu({ boardId, boardTitle, children }: BoardMenuPro
   );
 }
 
-export function BoardEllipsisButton({ boardId, boardTitle }: Omit<BoardMenuProps, "children">): JSX.Element {
-  const logic = useBoardMenuLogic(boardId, boardTitle);
+export function BoardEllipsisButton({ boardId, boardTitle, path }: Omit<BoardMenuProps, "children">): JSX.Element {
+  const logic = useBoardMenuLogic(boardId, boardTitle, path);
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>

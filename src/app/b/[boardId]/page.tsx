@@ -8,11 +8,18 @@ export default function BoardPage({
   searchParams,
 }: {
   params: { boardId: string };
-  searchParams: { title?: string };
+  searchParams: { title?: string; path?: string };
 }) {
+  let navPath: { id: string; title: string }[] | undefined;
+  try {
+    navPath = searchParams.path ? JSON.parse(searchParams.path) : undefined;
+  } catch {
+    navPath = undefined;
+  }
+
   return (
     <main className="min-h-screen bg-white">
-      <Gallery boardId={params.boardId} title={searchParams.title} />
+      <Gallery boardId={params.boardId} title={searchParams.title} navPath={navPath} />
     </main>
   );
 }

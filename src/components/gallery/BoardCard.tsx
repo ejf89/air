@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { useDroppable } from "@dnd-kit/core";
 import type { Board } from "@/app/api/boards";
 import { imgixThumb } from "@/lib/imgix";
-import { BoardContextMenu, BoardEllipsisButton, boardHref } from "./BoardMenu";
+import { BoardContextMenu, BoardEllipsisButton, boardHref, type Crumb } from "./BoardMenu";
 
 export interface BoardCardProps {
   board: Board;
+  /** Navigation path from root down to (excluding) this board. */
+  path: Crumb[];
 }
 
 /**
@@ -16,22 +18,22 @@ export interface BoardCardProps {
  * (thumbnail, bottom gradient, white title). Doubles as the drop target
  * for dragging assets into the board.
  */
-function BoardCardImpl({ board }: BoardCardProps): JSX.Element {
+function BoardCardImpl({ board, path }: BoardCardProps): JSX.Element {
   const router = useRouter();
   const { setNodeRef, isOver } = useDroppable({ id: `board-drop-${board.id}` });
   const thumb = board.thumbnails?.[0];
 
   return (
-    <BoardContextMenu boardId={board.id} boardTitle={board.title}>
+    <BoardContextMenu boardId={board.id} boardTitle={board.title} path={path}>
       <div
         ref={setNodeRef}
         role="button"
         tabIndex={0}
-        onClick={() => router.push(boardHref(board.id, board.title))}
+        onClick={() => router.push(boardHref(board.id, board.title, path))}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            router.push(boardHref(board.id, board.title));
+            router.push(boardHref(board.id, board.title, path));
           }
         }}
         className={`group relative aspect-[16/10] cursor-pointer select-none overflow-hidden rounded-xl bg-neutral-200 shadow-sm ring-1 ring-black/5 outline-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-blue-500 ${
@@ -69,7 +71,7 @@ function BoardCardImpl({ board }: BoardCardProps): JSX.Element {
           </div>
         ) : null}
 
-        <BoardEllipsisButton boardId={board.id} boardTitle={board.title} />
+        <BoardEllipsisButton boardId={board.id} boardTitle={board.title} path={path} />
       </div>
     </BoardContextMenu>
   );
