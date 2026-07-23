@@ -161,7 +161,7 @@ export function AssetEllipsisButton({ assetId }: Omit<AssetMenuProps, "children"
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
           aria-label="More actions"
-          className="absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-md bg-white/95 text-neutral-700 opacity-0 shadow-sm transition-opacity hover:bg-white group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100"
+          className="absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-lg bg-neutral-800/90 text-white opacity-0 shadow-sm transition-opacity hover:bg-neutral-900 group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100"
         >
           <EllipsisIcon />
         </button>

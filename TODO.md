@@ -87,6 +87,12 @@ below the cut line gets documented as "not done" rather than half-built.
 
 ## Bonus ideas (only if time remains)
 
+- **Onboarding walkthrough (user's pick — prioritize first)**: first-visit
+  tour that spotlights the gallery's hidden interactions in sequence
+  (rubber-band select → shift+lasso → drag to reorder → drop on a board →
+  hover video preview → context menu). Dismissable, persisted in
+  localStorage so it only shows once, restartable from a "?" button.
+
 - Lightbox / detail view on click
 - Keyboard nav (arrow keys, shift-select, cmd/ctrl-select, delete key)
 - Command palette or quick search/filter across assets

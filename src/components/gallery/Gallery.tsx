@@ -23,6 +23,24 @@ import { SelectionBar } from "./SelectionBar";
 const BOARD_DROP_PREFIX = "board-drop-";
 const ASSET_DROP_PREFIX = "asset-drop-";
 
+/**
+ * PointerSensor that ignores shift/cmd-modified presses: shift+drag is the
+ * lasso gesture (see AssetGrid), and cmd+click toggles selection — neither
+ * should ever start an asset drag.
+ */
+class GalleryPointerSensor extends PointerSensor {
+  static activators = [
+    {
+      eventName: "onPointerDown" as const,
+      handler: ({ nativeEvent }: React.PointerEvent): boolean => {
+        if (!nativeEvent.isPrimary || nativeEvent.button !== 0) return false;
+        if (nativeEvent.shiftKey || nativeEvent.metaKey || nativeEvent.ctrlKey) return false;
+        return true;
+      },
+    },
+  ];
+}
+
 export function Gallery(): JSX.Element {
   const { data: allBoards, isLoading } = useQuery({
     queryKey: ["boardTree"],
@@ -31,11 +49,6 @@ export function Gallery(): JSX.Element {
   });
 
   const boards = allBoards ?? EMPTY_BOARDS;
-
-  const boardsFlat = React.useMemo(
-    () => boards.map((b) => ({ id: b.id, title: b.title })),
-    [boards]
-  );
 
   const rootChildren = React.useMemo(
     () =>
@@ -73,7 +86,7 @@ export function Gallery(): JSX.Element {
 
   // 8px activation distance keeps plain clicks (select) and drags distinct.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(GalleryPointerSensor, { activationConstraint: { distance: 8 } })
   );
 
   const handleDragStart = React.useCallback((event: DragStartEvent) => {
@@ -177,7 +190,7 @@ export function Gallery(): JSX.Element {
         </Section>
       </div>
 
-      <SelectionBar boards={boardsFlat} />
+      <SelectionBar boardTitle={rootTitle} />
 
       <DragOverlay dropAnimation={null}>
         {activeAsset ? (

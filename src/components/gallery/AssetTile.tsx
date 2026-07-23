@@ -25,6 +25,12 @@ function formatDuration(totalSeconds: number): string {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
+function formatSize(bytes: number): string {
+  if (!bytes) return "";
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
 function CheckIcon(): JSX.Element {
   return (
     <svg width="11" height="11" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -172,12 +178,24 @@ function AssetTileImpl(props: AssetTileProps): JSX.Element {
               </div>
             </div>
             {asset.duration ? (
-              <div className="pointer-events-none absolute bottom-1.5 right-1.5 rounded px-1.5 py-0.5 text-[11px] leading-none text-white bg-black/60">
+              <div className="pointer-events-none absolute bottom-1.5 right-1.5 z-10 rounded px-1.5 py-0.5 text-[11px] leading-none text-white bg-black/60">
                 {formatDuration(asset.duration)}
               </div>
             ) : null}
           </>
         ) : null}
+
+        {/* Hover info overlay — pure CSS (group-hover), zero per-frame JS cost */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col justify-end bg-gradient-to-t from-black/70 via-black/30 to-transparent p-2.5 pt-8 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+          <p className="truncate text-[13px] font-semibold leading-tight text-white">
+            {asset.title ?? asset.importedName ?? "Untitled"}
+          </p>
+          <p className="mt-0.5 truncate text-[11px] leading-tight text-white/80">
+            {asset.ext?.toUpperCase()}
+            {asset.size ? ` · ${formatSize(asset.size)}` : ""}
+            {asset.width && asset.height ? ` · ${asset.width} × ${asset.height}` : ""}
+          </p>
+        </div>
 
         <div className="absolute top-1.5 left-1.5 z-10">
           {isSelected ? (

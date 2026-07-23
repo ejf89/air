@@ -126,10 +126,32 @@ export function AssetGrid({ boardId }: AssetGridProps): JSX.Element {
   // NOTE: the measured container must always be mounted (skeleton/empty
   // states render inside it) — the width/offset measurement effect only runs
   // once, so an early return here would leave containerWidth at 0 forever.
+  // Shift+drag starting ON a tile lassoes instead of dragging the asset:
+  // react-drag-to-select skips drags originating on [data-draggable="true"],
+  // and its check walks up from the press target and stops at the first
+  // element carrying the attribute — so flipping the pressed tile to "false"
+  // for the duration of the gesture opens the gate. dnd-kit is symmetrically
+  // gated by a shift-aware sensor in Gallery.tsx. One DOM write per gesture,
+  // no React re-render of any tile.
+  const handlePointerDownCapture = React.useCallback((e: React.PointerEvent) => {
+    if (!e.shiftKey) return;
+    const tile = (e.target as HTMLElement).closest<HTMLElement>('[data-draggable]');
+    if (!tile) return;
+    tile.dataset.draggable = "false";
+    const restore = () => {
+      tile.dataset.draggable = "true";
+      window.removeEventListener("pointerup", restore);
+      window.removeEventListener("pointercancel", restore);
+    };
+    window.addEventListener("pointerup", restore);
+    window.addEventListener("pointercancel", restore);
+  }, []);
+
   return (
     <div
       ref={containerRef}
       className="relative"
+      onPointerDownCapture={handlePointerDownCapture}
       onClick={(e) => {
         if (e.target === e.currentTarget) clearSelection();
       }}
