@@ -168,6 +168,12 @@ export function Gallery({
   const setSelection = useGalleryStore((s) => s.setSelection);
 
   const shiftLassoBaseRef = React.useRef<string[] | null>(null);
+  // A lasso release fires a click on the common ancestor of press/release
+  // targets — i.e. the page container itself — which is indistinguishable
+  // from a plain "click empty space" without tracking the gesture. Suppress
+  // exactly one clear after any real drag gesture (lasso or dnd).
+  const lassoMovedRef = React.useRef(false);
+  const suppressNextClearRef = React.useRef(false);
   const handlePointerDownCapture = React.useCallback((e: React.PointerEvent) => {
     if (!e.shiftKey) {
       shiftLassoBaseRef.current = null;
@@ -195,9 +201,12 @@ export function Gallery({
   const { DragSelection } = useSelectionContainer({
     eventsElement: mainEl,
     onSelectionChange: (box) => {
-      // Box and tile rects are both viewport-relative and read live
-      // mid-drag, so they intersect directly. Only mounted (visible +
-      // overscan) tiles can match — fine for a visible-area gesture.
+      // Verified empirically: the library reports the box in raw viewport
+      // coordinates (clientX/Y), so it intersects directly with live
+      // getBoundingClientRect()s. The marquee itself must therefore be
+      // drawn in a viewport-origin layer — see the fixed wrapper below.
+      // Only mounted (visible + overscan) tiles can match — fine for a
+      // visible-area gesture.
       const matched: string[] = [];
       tileRegistry.forEach((el, id) => {
         const r = el.getBoundingClientRect();
@@ -205,8 +214,13 @@ export function Gallery({
           matched.push(id);
         }
       });
+      if (box.width * box.height > 9) lassoMovedRef.current = true;
       const base = shiftLassoBaseRef.current;
       setSelection(base ? Array.from(new Set([...base, ...matched])) : matched);
+    },
+    onSelectionEnd: () => {
+      if (lassoMovedRef.current) suppressNextClearRef.current = true;
+      lassoMovedRef.current = false;
     },
     selectionProps: {
       style: {
@@ -235,6 +249,7 @@ export function Gallery({
   const handleDragEnd = React.useCallback(
     (event: DragEndEvent) => {
       setActiveAsset(null);
+      suppressNextClearRef.current = true;
       const { active, over } = event;
       if (!over) return;
       const activeId = String(active.id);
@@ -309,11 +324,21 @@ export function Gallery({
         ref={setMainEl}
         onPointerDownCapture={handlePointerDownCapture}
         onClick={(e) => {
+          if (suppressNextClearRef.current) {
+            suppressNextClearRef.current = false;
+            return;
+          }
           if (e.target === e.currentTarget) clearSelection();
         }}
         className="relative mx-auto max-w-[1500px] px-4 py-5 sm:px-6 lg:px-8"
       >
-        <DragSelection />
+        {/* Marquee layer: the library positions the drawn box using viewport
+            coordinates relative to this element's parent, so the parent must
+            sit at the viewport origin or the visible rectangle is displaced
+            from the cursor. */}
+        <div className="pointer-events-none fixed inset-0 z-30">
+          <DragSelection />
+        </div>
 
         {/* Content header: breadcrumbs + title left, sort controls right. */}
         <header className="mb-5">

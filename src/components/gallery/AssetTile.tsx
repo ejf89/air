@@ -168,8 +168,10 @@ function AssetTileImpl(props: AssetTileProps): JSX.Element {
         // from the other side (see GalleryPointerSensor).
         data-draggable={isSelected ? "true" : "false"}
         data-asset-id={asset.id}
-        className={`group relative overflow-hidden rounded-lg bg-neutral-100 select-none ${
-          isSelected ? "cursor-grab ring-2 ring-inset ring-blue-500 active:cursor-grabbing" : ""
+        className={`group relative overflow-hidden rounded-lg bg-neutral-100 select-none transition-shadow ${
+          isSelected
+            ? "cursor-grab ring-2 ring-blue-600 ring-offset-2 active:cursor-grabbing"
+            : "ring-1 ring-inset ring-black/5 hover:shadow-md hover:ring-black/10"
         }`}
         style={style}
         onClick={handleClick}
