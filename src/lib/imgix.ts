@@ -22,7 +22,7 @@ export function imgixEagerThumb(url: string): string {
     const u = new URL(url);
     u.searchParams.set("w", "640");
     u.searchParams.set("auto", "format,compress");
-    u.searchParams.set("q", "60");
+    u.searchParams.set("q", "45");
     return u.toString();
   } catch {
     return url;
@@ -41,7 +41,7 @@ export function imgixThumb(url: string, width: number, height: number): string {
     u.searchParams.set("h", String(bucket(height)));
     u.searchParams.set("fit", "crop");
     u.searchParams.set("auto", "format,compress");
-    u.searchParams.set("q", "60");
+    u.searchParams.set("q", "45");
     return u.toString();
   } catch {
     return url;

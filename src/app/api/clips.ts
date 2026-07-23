@@ -83,7 +83,7 @@ export interface SortField {
 export const fetchAssets = ({
   boardId = ROOT_BOARD_ID,
   cursor,
-  limit = 60,
+  limit = 30,
   search,
   sortField = { direction: "desc", name: "dateModified" },
   includeDescendants = false,
