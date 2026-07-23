@@ -215,7 +215,7 @@ export function AssetGrid({
                       width={tile.displayWidth}
                       height={tile.displayHeight}
                       reorderable={!serverMode}
-                      eager={virtualRow.index < 1}
+                      eager={virtualRow.index < 2}
                     />
                   </div>
                 );
