@@ -411,19 +411,28 @@ export function Gallery({
         ) : (
           <>
             {isLoading || childBoards.length ? (
-              <Section
-                storeKey="section:boards"
-                title="Boards"
-                count={childBoards.length || undefined}
-              >
-                <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                  {isLoading
-                    ? Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="aspect-[16/10] animate-pulse rounded-xl bg-neutral-100" />
-                      ))
-                    : childBoards.map((b) => <BoardCard key={b.id} board={b} path={childPath} />)}
-                </div>
-              </Section>
+              // Mobile: boards pin under the top bar as a horizontal strip
+              // (drop targets stay reachable while scrolling the wall).
+              // sm+: static grid, as on the reference site.
+              <div className="sticky top-14 z-20 -mx-4 border-b border-neutral-200/70 bg-white px-4 pt-1 sm:static sm:z-auto sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pt-0">
+                <Section
+                  storeKey="section:boards"
+                  title="Boards"
+                  count={childBoards.length || undefined}
+                >
+                  <div className="mb-3 flex gap-3 overflow-x-auto pb-2 sm:mb-4 sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                    {isLoading
+                      ? Array.from({ length: 4 }).map((_, i) => (
+                          <div key={i} className="aspect-[16/10] w-40 shrink-0 animate-pulse rounded-xl bg-neutral-100 sm:w-auto sm:shrink" />
+                        ))
+                      : childBoards.map((b) => (
+                          <div key={b.id} className="w-40 shrink-0 sm:w-auto sm:shrink">
+                            <BoardCard board={b} path={childPath} />
+                          </div>
+                        ))}
+                  </div>
+                </Section>
+              </div>
             ) : null}
 
             <Section storeKey="section:assets" title="Assets" count={assetTotal}>

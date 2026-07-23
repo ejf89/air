@@ -55,16 +55,26 @@ export function Tour(): JSX.Element | null {
   const [step, setStep] = React.useState(0);
   const [rect, setRect] = React.useState<SpotRect | null>(null);
 
-  // First visit only — and wait for the wall to actually have tiles.
+  // First visit only — and only after the page has fully settled (tiles
+  // mounted + idle + a beat), so the overlay never competes with initial
+  // paint/measurement.
   React.useEffect(() => {
     if (localStorage.getItem(TOUR_KEY)) return;
+    let cancelled = false;
     const t = setInterval(() => {
       if (tileRegistry.size > 0) {
         clearInterval(t);
-        setOpen(true);
+        const idle = (cb: () => void) =>
+          "requestIdleCallback" in window
+            ? window.requestIdleCallback(() => cb())
+            : setTimeout(cb, 500);
+        idle(() => setTimeout(() => !cancelled && setOpen(true), 2000));
       }
     }, 300);
-    return () => clearInterval(t);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
   }, []);
 
   // Measure the current step's target (after scrolling it into view).
@@ -139,7 +149,7 @@ export function Tour(): JSX.Element | null {
           }}
         />
       ) : (
-        <div className="absolute inset-0 bg-neutral-950/60 backdrop-blur-[2px]" />
+        <div className="absolute inset-0 bg-neutral-950/60" />
       )}
 
       <div

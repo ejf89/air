@@ -158,6 +158,10 @@ function AssetTileImpl(props: AssetTileProps): JSX.Element {
     transform: transform ? CSS.Translate.toString(transform) : undefined,
     opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 50 : undefined,
+    // Pointer-based dnd needs touch-action:none on drag handles or mobile
+    // browsers claim the gesture for scrolling before the sensor activates.
+    // Only selected tiles are handles, so the wall itself stays scrollable.
+    touchAction: isSelected ? "none" : undefined,
   };
 
   return (
