@@ -14,11 +14,17 @@ export interface BoardMenuProps {
 
 const MENU_SEPARATOR_CLASS = "mx-1.5 my-1 h-px bg-neutral-200";
 
+export function openBoardInAir(boardId: string) {
+  window.open(
+    `https://app.air.inc/a/bDkBvnzpB/b/${boardId}`,
+    "_blank",
+    "noopener,noreferrer"
+  );
+}
+
 function useBoardMenuLogic(boardId: string) {
   const selectionCount = useGalleryStore((s) => s.selectedIds.length);
   const moveManyToBoard = useGalleryStore((s) => s.moveManyToBoard);
-  const toggleExpanded = useGalleryStore((s) => s.toggleExpanded);
-  const expanded = useGalleryStore((s) => s.expanded[boardId] ?? false);
 
   const moveLabel = `Move ${selectionCount} ${selectionCount === 1 ? "asset" : "assets"} here`;
 
@@ -26,11 +32,9 @@ function useBoardMenuLogic(boardId: string) {
     moveManyToBoard(useGalleryStore.getState().selectedIds, boardId);
   }, [moveManyToBoard, boardId]);
 
-  const handleToggleOpen = React.useCallback(() => {
-    toggleExpanded(boardId);
-  }, [toggleExpanded, boardId]);
+  const handleOpen = React.useCallback(() => openBoardInAir(boardId), [boardId]);
 
-  return { selectionCount, moveLabel, expanded, handleMoveSelectionHere, handleToggleOpen };
+  return { selectionCount, moveLabel, handleMoveSelectionHere, handleOpen };
 }
 
 interface BodyProps extends ReturnType<typeof useBoardMenuLogic> {
@@ -38,7 +42,7 @@ interface BodyProps extends ReturnType<typeof useBoardMenuLogic> {
   Separator: typeof ContextMenu.Separator | typeof DropdownMenu.Separator;
 }
 
-function MenuBody({ Item, Separator, selectionCount, moveLabel, expanded, handleMoveSelectionHere, handleToggleOpen }: BodyProps) {
+function MenuBody({ Item, Separator, selectionCount, moveLabel, handleMoveSelectionHere, handleOpen }: BodyProps) {
   return (
     <>
       {selectionCount > 0 ? (
@@ -49,8 +53,8 @@ function MenuBody({ Item, Separator, selectionCount, moveLabel, expanded, handle
           <Separator className={MENU_SEPARATOR_CLASS} />
         </>
       ) : null}
-      <Item className={MENU_ITEM_CLASS} onSelect={handleToggleOpen}>
-        {expanded ? "Collapse board" : "Expand board"}
+      <Item className={MENU_ITEM_CLASS} onSelect={handleOpen}>
+        Open board
       </Item>
     </>
   );

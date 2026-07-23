@@ -2,10 +2,10 @@
 
 import * as React from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import { useSelectionContainer, boxesIntersect } from "react-drag-to-select";
 import { useBoardAssets, type AssetQueryOptions } from "@/hooks/useBoardAssets";
 import { useGalleryStore } from "@/lib/store";
 import { computeJustifiedRows } from "@/lib/justifiedLayout";
+import { tileRegistry } from "@/lib/tileRegistry";
 import { AssetTile } from "./AssetTile";
 
 const TARGET_ROW_HEIGHT = 300;
@@ -98,43 +98,13 @@ export function AssetGrid({ boardId, queryOptions, emptyMessage }: AssetGridProp
     }
   }, [virtualRows, rows.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // ---- rubber-band multi-select ------------------------------------------
-  const tileRefs = React.useRef(new Map<string, HTMLElement>());
+  // Tiles register into the shared registry; the page-level rubber band
+  // in Gallery.tsx intersects against it.
   const registerTileRef = React.useCallback((id: string, el: HTMLElement | null) => {
-    if (el) tileRefs.current.set(id, el);
-    else tileRefs.current.delete(id);
+    if (el) tileRegistry.set(id, el);
+    else tileRegistry.delete(id);
   }, []);
-  const setSelection = useGalleryStore((s) => s.setSelection);
   const clearSelection = useGalleryStore((s) => s.clearSelection);
-
-  const { DragSelection } = useSelectionContainer({
-    eventsElement: typeof window === "undefined" ? undefined : containerRef.current,
-    onSelectionChange: (box) => {
-      // `box` and getBoundingClientRect are both viewport-relative, and both
-      // are read live mid-drag, so they can be intersected directly. Only
-      // mounted (visible + overscan) tiles can match — acceptable for a
-      // rubber band, which is inherently a visible-area gesture.
-      const matched: string[] = [];
-      tileRefs.current.forEach((el, id) => {
-        const r = el.getBoundingClientRect();
-        if (boxesIntersect(box, { left: r.left, top: r.top, width: r.width, height: r.height })) {
-          matched.push(id);
-        }
-      });
-      // Shift+lasso adds to the selection captured at gesture start;
-      // a plain lasso replaces it.
-      const base = shiftLassoBaseRef.current;
-      setSelection(base ? Array.from(new Set([...base, ...matched])) : matched);
-    },
-    selectionProps: {
-      style: {
-        border: "1.5px solid rgb(59 130 246)",
-        borderRadius: 4,
-        backgroundColor: "rgba(59, 130, 246, 0.1)",
-        zIndex: 30,
-      },
-    },
-  });
 
   const isEmpty = !isLoading && total === 0 && items.length === 0;
   const showSkeleton = isLoading && !rows.length;
@@ -142,50 +112,14 @@ export function AssetGrid({ boardId, queryOptions, emptyMessage }: AssetGridProp
   // NOTE: the measured container must always be mounted (skeleton/empty
   // states render inside it) — the width/offset measurement effect only runs
   // once, so an early return here would leave containerWidth at 0 forever.
-  // Shift+drag starting ON a tile lassoes instead of dragging the asset:
-  // react-drag-to-select skips drags originating on [data-draggable="true"],
-  // and its check walks up from the press target and stops at the first
-  // element carrying the attribute — so flipping the pressed tile to "false"
-  // for the duration of the gesture opens the gate. dnd-kit is symmetrically
-  // gated by a shift-aware sensor in Gallery.tsx. One DOM write per gesture,
-  // no React re-render of any tile.
-  const shiftLassoBaseRef = React.useRef<string[] | null>(null);
-  const handlePointerDownCapture = React.useCallback((e: React.PointerEvent) => {
-    if (!e.shiftKey) {
-      shiftLassoBaseRef.current = null;
-      return;
-    }
-    // Snapshot the selection so the shift+lasso adds to it instead of
-    // replacing it. Selected tiles carry data-draggable="true" (they're
-    // drag handles), which blocks the selection library — flip the pressed
-    // one off for the duration of the gesture so shift+drag can lasso from
-    // anywhere. Restore to its original value (selection state may change
-    // mid-gesture).
-    shiftLassoBaseRef.current = useGalleryStore.getState().selectedIds;
-    const tile = (e.target as HTMLElement).closest<HTMLElement>('[data-draggable="true"]');
-    if (!tile) return;
-    tile.dataset.draggable = "false";
-    const restore = () => {
-      const id = tile.dataset.assetId;
-      tile.dataset.draggable =
-        id && useGalleryStore.getState().selectedSet.has(id) ? "true" : "false";
-      window.removeEventListener("pointerup", restore);
-      window.removeEventListener("pointercancel", restore);
-    };
-    window.addEventListener("pointerup", restore);
-    window.addEventListener("pointercancel", restore);
-  }, []);
-
   return (
     <div
       ref={containerRef}
       className="relative"
-      onPointerDownCapture={handlePointerDownCapture}
       onClick={(e) => {
         if (e.target === e.currentTarget) clearSelection();
       }}
     >
-      <DragSelection />
       {isEmpty ? (
         <div className="rounded-lg border border-dashed border-neutral-200 px-4 py-10 text-center text-sm text-neutral-400">
           {emptyMessage ?? "No assets in this board — drag some in."}

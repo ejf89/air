@@ -54,32 +54,3 @@ export const fetchBoards = (
     }),
   }).then((r) => r.json());
 
-/**
- * The board tree here is small (a handful of boards deep), unlike asset
- * counts which can run into the hundreds per board. We fetch it eagerly,
- * one BFS level at a time (parallel within a level), so the full collapsible
- * tree and the "move to board" menu both have a complete board list up
- * front, while each board's own (potentially large) asset list still loads
- * lazily on expand.
- */
-export async function fetchBoardTree(): Promise<Board[]> {
-  const all: Board[] = [];
-  let frontier = [ROOT_BOARD_ID];
-  const seen = new Set<string>(frontier);
-
-  while (frontier.length) {
-    const results = await Promise.all(frontier.map((id) => fetchBoards(id)));
-    const next: string[] = [];
-    for (const res of results) {
-      for (const board of res.data) {
-        if (seen.has(board.id)) continue;
-        seen.add(board.id);
-        all.push(board);
-        next.push(board.id);
-      }
-    }
-    frontier = next;
-  }
-
-  return all;
-}

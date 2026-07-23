@@ -11,9 +11,11 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { fetchBoardTree, ROOT_BOARD_ID, type Board } from "@/app/api/boards";
-import type { Clip } from "@/app/api/clips";
+import { useSelectionContainer, boxesIntersect } from "react-drag-to-select";
+import { fetchBoards, ROOT_BOARD_ID, type Board, type BoardsListResponse } from "@/app/api/boards";
+import type { Clip, ClipsListResponse } from "@/app/api/clips";
 import { useGalleryStore } from "@/lib/store";
+import { tileRegistry } from "@/lib/tileRegistry";
 import { imgixThumb } from "@/lib/imgix";
 import { AssetGrid } from "./AssetGrid";
 import { BoardCard } from "./BoardCard";
@@ -47,14 +49,24 @@ class GalleryPointerSensor extends PointerSensor {
   ];
 }
 
-export function Gallery(): JSX.Element {
-  const { data: allBoards, isLoading } = useQuery({
-    queryKey: ["boardTree"],
-    queryFn: () => fetchBoardTree(),
+export interface GalleryProps {
+  /** Server-fetched (ISR) first payloads — see app/page.tsx. */
+  initialBoards?: BoardsListResponse;
+  initialAssets?: ClipsListResponse;
+}
+
+export function Gallery({ initialBoards, initialAssets }: GalleryProps): JSX.Element {
+  // One request for the root board's children — board cards must not wait
+  // on a recursive tree walk (they're above-the-fold content). Seeded from
+  // the ISR payload so cards paint immediately after hydration.
+  const { data: boardsResponse, isLoading } = useQuery({
+    queryKey: ["boards", ROOT_BOARD_ID],
+    queryFn: () => fetchBoards(),
     staleTime: 5 * 60_000,
+    initialData: initialBoards,
   });
 
-  const boards = allBoards ?? EMPTY_BOARDS;
+  const boards = boardsResponse?.data ?? EMPTY_BOARDS;
 
   const rootChildren = React.useMemo(
     () =>
@@ -97,6 +109,64 @@ export function Gallery(): JSX.Element {
 
   const [activeAsset, setActiveAsset] = React.useState<Clip | null>(null);
   const [activeCount, setActiveCount] = React.useState(1);
+
+  // ---- page-level rubber-band selection -----------------------------------
+  // Lasso can start ANYWHERE on the page (header, margins, boards row, on
+  // unselected tiles) — only selected tiles (drag handles) and interactive
+  // controls marked data-draggable="true" opt out.
+  const [mainEl, setMainEl] = React.useState<HTMLDivElement | null>(null);
+  const setSelection = useGalleryStore((s) => s.setSelection);
+
+  const shiftLassoBaseRef = React.useRef<string[] | null>(null);
+  const handlePointerDownCapture = React.useCallback((e: React.PointerEvent) => {
+    if (!e.shiftKey) {
+      shiftLassoBaseRef.current = null;
+      return;
+    }
+    // Shift+lasso adds to the selection captured at gesture start. Selected
+    // tiles carry data-draggable="true" (they're drag handles), which blocks
+    // the selection library — flip the pressed one off for the gesture so
+    // shift+drag lassoes from anywhere, restoring by selection state after.
+    shiftLassoBaseRef.current = useGalleryStore.getState().selectedIds;
+    const tile = (e.target as HTMLElement).closest<HTMLElement>('[data-asset-id][data-draggable="true"]');
+    if (!tile) return;
+    tile.dataset.draggable = "false";
+    const restore = () => {
+      const id = tile.dataset.assetId;
+      tile.dataset.draggable =
+        id && useGalleryStore.getState().selectedSet.has(id) ? "true" : "false";
+      window.removeEventListener("pointerup", restore);
+      window.removeEventListener("pointercancel", restore);
+    };
+    window.addEventListener("pointerup", restore);
+    window.addEventListener("pointercancel", restore);
+  }, []);
+
+  const { DragSelection } = useSelectionContainer({
+    eventsElement: mainEl,
+    onSelectionChange: (box) => {
+      // Box and tile rects are both viewport-relative and read live
+      // mid-drag, so they intersect directly. Only mounted (visible +
+      // overscan) tiles can match — fine for a visible-area gesture.
+      const matched: string[] = [];
+      tileRegistry.forEach((el, id) => {
+        const r = el.getBoundingClientRect();
+        if (boxesIntersect(box, { left: r.left, top: r.top, width: r.width, height: r.height })) {
+          matched.push(id);
+        }
+      });
+      const base = shiftLassoBaseRef.current;
+      setSelection(base ? Array.from(new Set([...base, ...matched])) : matched);
+    },
+    selectionProps: {
+      style: {
+        border: "1.5px solid rgb(59 130 246)",
+        borderRadius: 4,
+        backgroundColor: "rgba(59, 130, 246, 0.1)",
+        zIndex: 30,
+      },
+    },
+  });
 
   // 8px activation distance keeps plain clicks (select) and drags distinct.
   const sensors = useSensors(
@@ -159,7 +229,15 @@ export function Gallery(): JSX.Element {
   // BFS (it's the LCP content). The boards section shows its own skeleton.
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
+      <div
+        ref={setMainEl}
+        onPointerDownCapture={handlePointerDownCapture}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) clearSelection();
+        }}
+        className="relative mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8"
+      >
+        <DragSelection />
         <header className="mb-5">
           <h1 className="text-2xl font-bold tracking-tight text-neutral-900">{rootTitle}</h1>
         </header>
@@ -205,7 +283,11 @@ export function Gallery(): JSX.Element {
             <Section storeKey="section:assets" title="Assets">
               <AssetGrid
                 boardId={ROOT_BOARD_ID}
-                queryOptions={serverMode ? { sortField: serverSort, serverMode } : undefined}
+                queryOptions={
+                  serverMode
+                    ? { sortField: serverSort, serverMode }
+                    : { initialData: initialAssets }
+                }
               />
             </Section>
           </>

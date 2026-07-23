@@ -49,6 +49,7 @@ export function Toolbar({ search, onSearchChange, sort, onSortChange }: ToolbarP
           <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
         <input
+          data-draggable="true"
           type="search"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
@@ -61,6 +62,7 @@ export function Toolbar({ search, onSearchChange, sort, onSortChange }: ToolbarP
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
           <button
+            data-draggable="true"
             type="button"
             className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-neutral-200 px-3 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 data-[state=open]:bg-neutral-100"
           >
@@ -97,6 +99,7 @@ export function Toolbar({ search, onSearchChange, sort, onSortChange }: ToolbarP
 
       {direction ? (
         <button
+          data-draggable="true"
           type="button"
           aria-label={`Sort ${direction === "desc" ? "descending" : "ascending"} — click to flip`}
           onClick={() =>

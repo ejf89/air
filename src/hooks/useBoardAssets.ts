@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { fetchAssets, type SortField } from "@/app/api/clips";
+import { fetchAssets, type ClipsListResponse, type SortField } from "@/app/api/clips";
 import { useGalleryStore } from "@/lib/store";
 
 export interface AssetQueryOptions {
@@ -13,6 +13,8 @@ export interface AssetQueryOptions {
    * server's order directly and never write into the local order store.
    */
   serverMode?: boolean;
+  /** ISR-provided first page (see app/page.tsx) — paints without a fetch. */
+  initialData?: ClipsListResponse;
 }
 
 export function useBoardAssets(
@@ -20,9 +22,12 @@ export function useBoardAssets(
   enabled: boolean,
   opts: AssetQueryOptions = {}
 ) {
-  const { search, sortField, includeDescendants, serverMode = false } = opts;
+  const { search, sortField, includeDescendants, serverMode = false, initialData } = opts;
 
   const query = useInfiniteQuery({
+    initialData: initialData
+      ? { pages: [initialData], pageParams: [null] }
+      : undefined,
     queryKey: [
       "assets",
       boardId,
