@@ -41,6 +41,7 @@ function BoardCardImpl({ board, path }: BoardCardProps): JSX.Element {
         }`}
       >
         {thumb ? (
+          // eslint-disable-next-line @next/next/no-img-element -- imgix-optimized thumb
           <img
             src={imgixThumb(thumb, 400, 250)}
             alt=""

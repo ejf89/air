@@ -414,6 +414,7 @@ export function Gallery({
       <DragOverlay dropAnimation={null}>
         {activeAsset ? (
           <div className="relative h-24 w-24 rotate-2 overflow-hidden rounded-lg shadow-2xl ring-2 ring-blue-500">
+            {/* eslint-disable-next-line @next/next/no-img-element -- tiny transient drag ghost */}
             <img
               src={imgixThumb(activeAsset.assets.image, 96, 96)}
               alt=""

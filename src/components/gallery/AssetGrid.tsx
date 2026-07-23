@@ -117,6 +117,43 @@ export function AssetGrid({
   }, []);
   const clearSelection = useGalleryStore((s) => s.clearSelection);
 
+  // FLIP: when the packed layout changes (reorder, move-out, resize), each
+  // surviving tile animates from its previous position instead of jumping.
+  // Positions are stored in page coordinates, so scrolling (which doesn't
+  // move tiles on the page) never produces bogus deltas — and the effect
+  // only runs when `rows` actually changes, never per scroll frame.
+  const prevPositions = React.useRef(new Map<string, { x: number; y: number }>());
+  React.useLayoutEffect(() => {
+    const moved: Array<[HTMLElement, number, number]> = [];
+    const seen = new Set<string>();
+    tileRegistry.forEach((el, id) => {
+      if (!el.isConnected) return;
+      seen.add(id);
+      const r = el.getBoundingClientRect();
+      const x = r.left + window.scrollX;
+      const y = r.top + window.scrollY;
+      const prev = prevPositions.current.get(id);
+      if (prev && (Math.abs(prev.x - x) > 1 || Math.abs(prev.y - y) > 1)) {
+        moved.push([el, prev.x - x, prev.y - y]);
+      }
+      prevPositions.current.set(id, { x, y });
+    });
+    prevPositions.current.forEach((_, id) => {
+      if (!seen.has(id)) prevPositions.current.delete(id);
+    });
+    if (!moved.length) return;
+    for (const [el, dx, dy] of moved) {
+      el.style.transition = "none";
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+    }
+    requestAnimationFrame(() => {
+      for (const [el] of moved) {
+        el.style.transition = "transform 240ms cubic-bezier(0.2, 0, 0, 1)";
+        el.style.transform = "";
+      }
+    });
+  }, [rows]);
+
   const isEmpty = !isLoading && total === 0 && items.length === 0;
   const showSkeleton = isLoading && !rows.length;
 
@@ -168,7 +205,6 @@ export function AssetGrid({
                   >
                     <AssetTile
                       asset={asset}
-                      boardId={boardId}
                       order={order}
                       width={tile.displayWidth}
                       height={tile.displayHeight}

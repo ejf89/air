@@ -10,7 +10,6 @@ import { AssetContextMenu, AssetEllipsisButton } from "./AssetMenu";
 
 export interface AssetTileProps {
   asset: Clip;
-  boardId: string; // the board this tile is currently rendered under
   order: string[]; // this board's full ordered list of asset ids, needed for shift+click range select
   width: number; // computed display width in px (from justified layout, upstream)
   height: number; // computed display height in px
@@ -185,6 +184,7 @@ function AssetTileImpl(props: AssetTileProps): JSX.Element {
 
         {/* Poster stays mounted under the video so hover-preview fades in
             from the poster instead of flashing a black loading frame. */}
+        {/* eslint-disable-next-line @next/next/no-img-element -- imgix already serves right-sized, format-negotiated thumbs; next/image's per-tile observers fight the virtualizer at 500+ tiles */}
         <img
           src={imgixThumb(asset.assets.image, width, height)}
           alt={asset.title ?? asset.importedName ?? ""}
