@@ -1,5 +1,11 @@
 # Air Gallery Challenge
 
+> 👋 **Hi Air team!** Thanks for a genuinely fun challenge. This was built
+> against the clock, so it bets on the things that make Air feel like Air:
+> the interlocking wall, lasso selection, drag-to-board, and speed. Best
+> way to review it is the live link below — lasso a few assets, drag them
+> onto a board, flip to the table view, and try it on your phone. Enjoy!
+
 A performance-first rebuild of Air's gallery view: board cards + an
 interlocking, virtualized wall of images and videos, with drag-and-drop,
 rubber-band selection, and Air-style menus.
