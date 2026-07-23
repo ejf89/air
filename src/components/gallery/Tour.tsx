@@ -149,7 +149,6 @@ export function Tour(): JSX.Element | null {
         className="absolute w-[min(400px,calc(100vw-32px))] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10 animate-[tour-in_180ms_ease-out]"
         style={tooltipStyle}
       >
-        <div className="h-1.5 bg-gradient-to-r from-blue-600 via-violet-500 to-rose-400" />
         <div className="p-5">
         {!hasTarget ? (
           <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-violet-500 text-lg font-bold italic text-white shadow-md">
