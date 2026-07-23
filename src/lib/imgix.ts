@@ -8,8 +8,13 @@ export function imgixThumb(url: string, width: number, height: number): string {
   try {
     const u = new URL(url);
     const dpr = Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, 2);
-    u.searchParams.set("w", String(Math.round(width * dpr)));
-    u.searchParams.set("h", String(Math.round(height * dpr)));
+    // Bucket sizes to 100px steps: when the justified layout reflows (row
+    // repacking after a move/resize), tiles keep the same src for small size
+    // changes and reuse the browser cache instead of flashing blank while a
+    // marginally-different crop refetches.
+    const bucket = (v: number) => Math.ceil((v * dpr) / 100) * 100;
+    u.searchParams.set("w", String(bucket(width)));
+    u.searchParams.set("h", String(bucket(height)));
     u.searchParams.set("fit", "crop");
     u.searchParams.set("auto", "format,compress");
     u.searchParams.set("q", "60");

@@ -23,48 +23,57 @@ const SORT_OPTIONS: SortFieldName[] = [
   "size",
 ];
 
-export interface ToolbarProps {
-  search: string;
-  onSearchChange: (value: string) => void;
+export interface SearchBoxProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}
+
+/** The centered top-bar search field, like the reference site's. */
+export function SearchBox({ value, onChange, placeholder }: SearchBoxProps): JSX.Element {
+  return (
+    <div className="relative w-full">
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 20 20"
+        fill="none"
+        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400"
+      >
+        <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+      <input
+        data-draggable="true"
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        className="h-10 w-full rounded-lg border border-neutral-200 bg-white pl-10 pr-3 text-[15px] text-neutral-900 placeholder:text-neutral-400 outline-none transition-shadow focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+      />
+    </div>
+  );
+}
+
+export interface SortControlsProps {
   sort: SortMode;
   onSortChange: (sort: SortMode) => void;
 }
 
-/** Search + sort controls, styled after the reference board's header row. */
-export function Toolbar({ search, onSearchChange, sort, onSortChange }: ToolbarProps): JSX.Element {
+/** "Date modified ↓"-style sort cluster, right-aligned by the title row. */
+export function SortControls({ sort, onSortChange }: SortControlsProps): JSX.Element {
   const sortLabel = sort.kind === "custom" ? "Custom" : SORT_LABELS[sort.field.name];
   const direction = sort.kind === "server" ? sort.field.direction : null;
 
   return (
-    <div className="mb-5 flex items-center gap-2">
-      <div className="relative min-w-0 flex-1 sm:max-w-xs">
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 20 20"
-          fill="none"
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"
-        >
-          <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-        <input
-          data-draggable="true"
-          type="search"
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search assets…"
-          aria-label="Search assets"
-          className="h-9 w-full rounded-lg border border-neutral-200 bg-neutral-50 pl-9 pr-3 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition-colors focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
-        />
-      </div>
-
+    <div className="flex shrink-0 items-center gap-1">
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
           <button
             data-draggable="true"
             type="button"
-            className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-neutral-200 px-3 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 data-[state=open]:bg-neutral-100"
+            className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 data-[state=open]:bg-neutral-100"
           >
             {sortLabel}
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none" className="text-neutral-400">
@@ -109,7 +118,7 @@ export function Toolbar({ search, onSearchChange, sort, onSortChange }: ToolbarP
               field: { ...sort.field, direction: direction === "desc" ? "asc" : "desc" },
             })
           }
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 transition-colors hover:bg-neutral-50"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
         >
           <svg
             width="14"

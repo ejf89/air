@@ -17,11 +17,13 @@ import type { Clip, ClipsListResponse } from "@/app/api/clips";
 import { useGalleryStore } from "@/lib/store";
 import { tileRegistry } from "@/lib/tileRegistry";
 import { imgixThumb } from "@/lib/imgix";
+import Link from "next/link";
 import { AssetGrid } from "./AssetGrid";
 import { BoardCard } from "./BoardCard";
 import { Section } from "./Section";
 import { SelectionBar } from "./SelectionBar";
-import { Toolbar, type SortMode } from "./Toolbar";
+import { Toast } from "./Toast";
+import { SearchBox, SortControls, type SortMode } from "./Toolbar";
 
 const BOARD_DROP_PREFIX = "board-drop-";
 const ASSET_DROP_PREFIX = "asset-drop-";
@@ -50,34 +52,66 @@ class GalleryPointerSensor extends PointerSensor {
 }
 
 export interface GalleryProps {
+  /** Board to display — the root board by default; sub-board pages pass
+   *  their own id (see app/b/[boardId]/page.tsx). */
+  boardId?: string;
+  /** Title carried through navigation so the header paints instantly. */
+  title?: string;
   /** Server-fetched (ISR) first payloads — see app/page.tsx. */
   initialBoards?: BoardsListResponse;
   initialAssets?: ClipsListResponse;
 }
 
-export function Gallery({ initialBoards, initialAssets }: GalleryProps): JSX.Element {
-  // One request for the root board's children — board cards must not wait
-  // on a recursive tree walk (they're above-the-fold content). Seeded from
-  // the ISR payload so cards paint immediately after hydration.
+export function Gallery({
+  boardId = ROOT_BOARD_ID,
+  title,
+  initialBoards,
+  initialAssets,
+}: GalleryProps): JSX.Element {
+  const isRoot = boardId === ROOT_BOARD_ID;
+
+  // One request for this board's children — board cards must not wait on a
+  // recursive tree walk (they're above-the-fold content). Seeded from the
+  // ISR payload on the root page so cards paint immediately after hydration.
   const { data: boardsResponse, isLoading } = useQuery({
-    queryKey: ["boards", ROOT_BOARD_ID],
-    queryFn: () => fetchBoards(),
+    queryKey: ["boards", boardId],
+    queryFn: () => fetchBoards(boardId),
     staleTime: 5 * 60_000,
     initialData: initialBoards,
   });
 
   const boards = boardsResponse?.data ?? EMPTY_BOARDS;
 
-  const rootChildren = React.useMemo(
+  const childBoards = React.useMemo(
     () =>
       boards
-        .filter((b) => b.parentId === ROOT_BOARD_ID)
+        .filter((b) => b.parentId === boardId)
         .sort((a, b) => Number(a.pos) - Number(b.pos)),
-    [boards]
+    [boards, boardId]
   );
 
-  const rootTitle =
-    boards.find((b) => b.ancestors?.length)?.ancestors?.[0]?.title ?? "Gallery";
+  // Any child's ancestors array is the full path root → … → current board
+  // (ids + titles), which gives us both the title and real breadcrumbs.
+  const ancestorChain = boards.find((b) => b.ancestors?.length)?.ancestors;
+
+  const boardTitle =
+    title ??
+    ancestorChain?.find((a) => a.id === boardId)?.title ??
+    (isRoot ? "Air Branded Boards" : "Board");
+
+  // Path above the current board, for the breadcrumb row. Empty for the
+  // root and for childless boards loaded directly (no chain available).
+  const breadcrumbs = React.useMemo(() => {
+    if (isRoot || !ancestorChain) return [];
+    return ancestorChain.filter((a) => a.id !== boardId);
+  }, [isRoot, ancestorChain, boardId]);
+
+  // Back target = immediate parent (last breadcrumb); root as fallback.
+  const parent = breadcrumbs[breadcrumbs.length - 1];
+  const parentHref =
+    !parent || parent.id === ROOT_BOARD_ID
+      ? "/"
+      : `/b/${parent.id}?title=${encodeURIComponent(parent.title)}`;
 
   const reorder = useGalleryStore((s) => s.reorder);
   const moveManyToBoard = useGalleryStore((s) => s.moveManyToBoard);
@@ -109,6 +143,9 @@ export function Gallery({ initialBoards, initialAssets }: GalleryProps): JSX.Ele
 
   const [activeAsset, setActiveAsset] = React.useState<Clip | null>(null);
   const [activeCount, setActiveCount] = React.useState(1);
+  const [assetTotal, setAssetTotal] = React.useState<number | undefined>(
+    initialAssets?.data.total
+  );
 
   // ---- page-level rubber-band selection -----------------------------------
   // Lasso can start ANYWHERE on the page (header, margins, boards row, on
@@ -200,6 +237,11 @@ export function Gallery({ initialBoards, initialAssets }: GalleryProps): JSX.Ele
             ? state.selectedIds
             : [activeId];
         moveManyToBoard(ids, targetBoardId);
+        const targetTitle =
+          childBoards.find((b) => b.id === targetBoardId)?.title ?? "board";
+        state.showToast(
+          `Moved ${ids.length} asset${ids.length === 1 ? "" : "s"} to ${targetTitle}`
+        );
         return;
       }
 
@@ -221,40 +263,92 @@ export function Gallery({ initialBoards, initialAssets }: GalleryProps): JSX.Ele
         reorder(sourceBoardId, group.length ? group : [activeId], overAssetId);
       }
     },
-    [reorder, moveManyToBoard]
+    [reorder, moveManyToBoard, childBoards]
   );
 
-  // NOTE: no early return while the board tree loads — the assets wall
-  // fetches independently and must not be serialized behind the boards
-  // BFS (it's the LCP content). The boards section shows its own skeleton.
+  // NOTE: no early return while the boards load — the assets wall fetches
+  // independently and must not be serialized behind it (it's LCP content).
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      {/* Top app bar: brand left, search centered — like the reference. */}
+      <div className="sticky top-0 z-30 border-b border-neutral-200/80 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-[1500px] items-center gap-3 px-4 sm:gap-6 sm:px-6 lg:px-8">
+          <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2.5">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-900 text-[13px] font-bold italic text-white">
+              a
+            </span>
+            <span className="hidden truncate text-[15px] font-semibold text-neutral-900 md:block">
+              Air Branded Boards
+            </span>
+          </Link>
+          <div className="mx-auto w-full max-w-xl">
+            <SearchBox
+              value={searchInput}
+              onChange={setSearchInput}
+              placeholder={`Search ${boardTitle}`}
+            />
+          </div>
+          <div className="hidden w-7 shrink-0 md:block lg:w-40" />
+        </div>
+      </div>
+
       <div
         ref={setMainEl}
         onPointerDownCapture={handlePointerDownCapture}
         onClick={(e) => {
           if (e.target === e.currentTarget) clearSelection();
         }}
-        className="relative mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8"
+        className="relative mx-auto max-w-[1500px] px-4 py-5 sm:px-6 lg:px-8"
       >
         <DragSelection />
+
+        {/* Content header: breadcrumbs + title left, sort controls right. */}
         <header className="mb-5">
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">{rootTitle}</h1>
+          {!isRoot ? (
+            <nav aria-label="Breadcrumb" className="mb-1 flex items-center gap-1 text-[13px] text-neutral-500">
+              {(breadcrumbs.length
+                ? breadcrumbs
+                : [{ id: ROOT_BOARD_ID, title: "Air Branded Boards" }]
+              ).map((crumb, i) => (
+                <React.Fragment key={crumb.id}>
+                  {i > 0 ? <span className="text-neutral-300">/</span> : null}
+                  <Link
+                    href={crumb.id === ROOT_BOARD_ID ? "/" : `/b/${crumb.id}?title=${encodeURIComponent(crumb.title)}`}
+                    className="max-w-[180px] truncate rounded px-1 py-0.5 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+                  >
+                    {crumb.title}
+                  </Link>
+                </React.Fragment>
+              ))}
+            </nav>
+          ) : null}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              {!isRoot ? (
+                <Link
+                  href={parentHref}
+                  aria-label="Back to parent board"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M10 3.5L5.5 8L10 12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Link>
+              ) : null}
+              <h1 className="truncate text-2xl font-bold tracking-tight text-neutral-900">
+                {boardTitle}
+              </h1>
+            </div>
+            <SortControls sort={sort} onSortChange={setSort} />
+          </div>
         </header>
 
-        <Toolbar
-          search={searchInput}
-          onSearchChange={setSearchInput}
-          sort={sort}
-          onSortChange={setSort}
-        />
-
         {isSearching ? (
-          // Search results are a flat view across the whole board tree,
-          // like the reference site's ?q= mode.
+          // Search results are a flat view across this board's whole
+          // subtree, like the reference site's ?q= mode.
           <Section storeKey="section:results" title={`Results for “${search}”`}>
             <AssetGrid
-              boardId={ROOT_BOARD_ID}
+              boardId={boardId}
               queryOptions={{
                 search,
                 sortField: serverSort,
@@ -266,23 +360,26 @@ export function Gallery({ initialBoards, initialAssets }: GalleryProps): JSX.Ele
           </Section>
         ) : (
           <>
-            <Section
-              storeKey="section:boards"
-              title="Boards"
-              count={rootChildren.length || undefined}
-            >
-              <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                {isLoading
-                  ? Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="aspect-[16/10] animate-pulse rounded-xl bg-neutral-100" />
-                    ))
-                  : rootChildren.map((b) => <BoardCard key={b.id} board={b} />)}
-              </div>
-            </Section>
+            {isLoading || childBoards.length ? (
+              <Section
+                storeKey="section:boards"
+                title="Boards"
+                count={childBoards.length || undefined}
+              >
+                <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                  {isLoading
+                    ? Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="aspect-[16/10] animate-pulse rounded-xl bg-neutral-100" />
+                      ))
+                    : childBoards.map((b) => <BoardCard key={b.id} board={b} />)}
+                </div>
+              </Section>
+            ) : null}
 
-            <Section storeKey="section:assets" title="Assets">
+            <Section storeKey="section:assets" title="Assets" count={assetTotal}>
               <AssetGrid
-                boardId={ROOT_BOARD_ID}
+                boardId={boardId}
+                onTotalChange={setAssetTotal}
                 queryOptions={
                   serverMode
                     ? { sortField: serverSort, serverMode }
@@ -294,7 +391,8 @@ export function Gallery({ initialBoards, initialAssets }: GalleryProps): JSX.Ele
         )}
       </div>
 
-      <SelectionBar boardTitle={rootTitle} />
+      <SelectionBar boardTitle={boardTitle} />
+      <Toast />
 
       <DragOverlay dropAnimation={null}>
         {activeAsset ? (

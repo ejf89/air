@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useGalleryStore } from "@/lib/store";
@@ -14,25 +15,32 @@ export interface BoardMenuProps {
 
 const MENU_SEPARATOR_CLASS = "mx-1.5 my-1 h-px bg-neutral-200";
 
-export function openBoardInAir(boardId: string) {
-  window.open(
-    `https://app.air.inc/a/bDkBvnzpB/b/${boardId}`,
-    "_blank",
-    "noopener,noreferrer"
-  );
+/** In-app route for a board's own gallery view. The title rides along so
+ *  the destination header paints without waiting for a fetch. */
+export function boardHref(boardId: string, boardTitle: string) {
+  return `/b/${boardId}?title=${encodeURIComponent(boardTitle)}`;
 }
 
-function useBoardMenuLogic(boardId: string) {
+function useBoardMenuLogic(boardId: string, boardTitle: string) {
+  const router = useRouter();
   const selectionCount = useGalleryStore((s) => s.selectedIds.length);
   const moveManyToBoard = useGalleryStore((s) => s.moveManyToBoard);
 
   const moveLabel = `Move ${selectionCount} ${selectionCount === 1 ? "asset" : "assets"} here`;
 
   const handleMoveSelectionHere = React.useCallback(() => {
-    moveManyToBoard(useGalleryStore.getState().selectedIds, boardId);
-  }, [moveManyToBoard, boardId]);
+    const state = useGalleryStore.getState();
+    const count = state.selectedIds.length;
+    moveManyToBoard(state.selectedIds, boardId);
+    state.showToast(
+      `Moved ${count} asset${count === 1 ? "" : "s"} to ${boardTitle}`
+    );
+  }, [moveManyToBoard, boardId, boardTitle]);
 
-  const handleOpen = React.useCallback(() => openBoardInAir(boardId), [boardId]);
+  const handleOpen = React.useCallback(
+    () => router.push(boardHref(boardId, boardTitle)),
+    [router, boardId, boardTitle]
+  );
 
   return { selectionCount, moveLabel, handleMoveSelectionHere, handleOpen };
 }
@@ -60,8 +68,8 @@ function MenuBody({ Item, Separator, selectionCount, moveLabel, handleMoveSelect
   );
 }
 
-export function BoardContextMenu({ boardId, children }: BoardMenuProps): JSX.Element {
-  const logic = useBoardMenuLogic(boardId);
+export function BoardContextMenu({ boardId, boardTitle, children }: BoardMenuProps): JSX.Element {
+  const logic = useBoardMenuLogic(boardId, boardTitle);
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
@@ -74,8 +82,8 @@ export function BoardContextMenu({ boardId, children }: BoardMenuProps): JSX.Ele
   );
 }
 
-export function BoardEllipsisButton({ boardId }: Omit<BoardMenuProps, "children">): JSX.Element {
-  const logic = useBoardMenuLogic(boardId);
+export function BoardEllipsisButton({ boardId, boardTitle }: Omit<BoardMenuProps, "children">): JSX.Element {
+  const logic = useBoardMenuLogic(boardId, boardTitle);
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>

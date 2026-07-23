@@ -18,6 +18,8 @@ export interface AssetGridProps {
    *  arrangement only exists in "Custom" sort). */
   queryOptions?: AssetQueryOptions;
   emptyMessage?: string;
+  /** Reports the server's total asset count for the section header. */
+  onTotalChange?: (total: number) => void;
 }
 
 /**
@@ -26,10 +28,19 @@ export interface AssetGridProps {
  * only visible rows are mounted via window-scroll virtualization — the whole
  * page scrolls as one surface, like the real Air gallery.
  */
-export function AssetGrid({ boardId, queryOptions, emptyMessage }: AssetGridProps): JSX.Element {
+export function AssetGrid({
+  boardId,
+  queryOptions,
+  emptyMessage,
+  onTotalChange,
+}: AssetGridProps): JSX.Element {
   const serverMode = Boolean(queryOptions?.serverMode);
   const { clips, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, total } =
     useBoardAssets(boardId, true, queryOptions);
+
+  React.useEffect(() => {
+    if (!isLoading) onTotalChange?.(total);
+  }, [total, isLoading, onTotalChange]);
 
   const localOrder = useGalleryStore((s) => s.orderByBoard[boardId]) ?? EMPTY;
   const assetById = useGalleryStore((s) => s.assetById);

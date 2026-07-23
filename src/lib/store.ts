@@ -33,6 +33,10 @@ interface GalleryState {
 
   toggleExpanded: (boardId: string, defaultValue?: boolean) => void;
 
+  toast: { message: string; key: number } | null;
+  showToast: (message: string) => void;
+  clearToast: () => void;
+
   setHovered: (id: string | null) => void;
   select: (id: string) => void;
   toggleSelect: (id: string) => void;
@@ -164,6 +168,11 @@ export const useGalleryStore = create<GalleryState>()(
         set((state) => ({
           expanded: { ...state.expanded, [boardId]: !(state.expanded[boardId] ?? defaultValue) },
         })),
+
+      toast: null,
+      showToast: (message) =>
+        set((state) => ({ toast: { message, key: (state.toast?.key ?? 0) + 1 } })),
+      clearToast: () => set({ toast: null }),
 
       setHovered: (id) => set({ hoveredAssetId: id }),
 

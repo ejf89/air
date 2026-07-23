@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { useDroppable } from "@dnd-kit/core";
 import type { Board } from "@/app/api/boards";
 import { imgixThumb } from "@/lib/imgix";
-import { BoardContextMenu, BoardEllipsisButton, openBoardInAir } from "./BoardMenu";
+import { BoardContextMenu, BoardEllipsisButton, boardHref } from "./BoardMenu";
 
 export interface BoardCardProps {
   board: Board;
@@ -16,6 +17,7 @@ export interface BoardCardProps {
  * for dragging assets into the board.
  */
 function BoardCardImpl({ board }: BoardCardProps): JSX.Element {
+  const router = useRouter();
   const { setNodeRef, isOver } = useDroppable({ id: `board-drop-${board.id}` });
   const thumb = board.thumbnails?.[0];
 
@@ -25,11 +27,11 @@ function BoardCardImpl({ board }: BoardCardProps): JSX.Element {
         ref={setNodeRef}
         role="button"
         tabIndex={0}
-        onClick={() => openBoardInAir(board.id)}
+        onClick={() => router.push(boardHref(board.id, board.title))}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            openBoardInAir(board.id);
+            router.push(boardHref(board.id, board.title));
           }
         }}
         className={`group relative aspect-[16/10] cursor-pointer select-none overflow-hidden rounded-xl bg-neutral-200 shadow-sm ring-1 ring-black/5 outline-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-blue-500 ${
