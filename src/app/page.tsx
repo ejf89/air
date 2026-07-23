@@ -16,7 +16,7 @@ export default async function Home() {
   ]);
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen">
       <Gallery initialBoards={initialBoards} initialAssets={initialAssets} />
     </main>
   );

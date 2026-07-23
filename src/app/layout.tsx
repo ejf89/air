@@ -20,7 +20,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://api.air.inc" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://air-prod.imgix.net" />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.className} bg-neutral-100`}>
         <Providers>{children}</Providers>
       </body>
     </html>

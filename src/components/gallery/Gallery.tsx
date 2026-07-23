@@ -299,7 +299,7 @@ export function Gallery({
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       {/* Top app bar: brand left, search centered — like the reference. */}
-      <div className="sticky top-0 z-30 border-b border-neutral-200/80 bg-white/90 backdrop-blur">
+      <div className="sticky top-0 z-30 bg-neutral-100/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1500px] items-center gap-3 px-4 sm:gap-6 sm:px-6 lg:px-8">
           <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2.5">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-900 text-[13px] font-bold italic text-white">
@@ -330,7 +330,7 @@ export function Gallery({
           }
           if (e.target === e.currentTarget) clearSelection();
         }}
-        className="relative mx-auto max-w-[1500px] px-4 py-5 sm:px-6 lg:px-8"
+        className="relative mx-auto mb-6 max-w-[1500px] rounded-2xl bg-white px-4 py-5 shadow-sm ring-1 ring-black/5 sm:mx-4 sm:px-6 lg:mx-auto lg:px-8"
       >
         {/* Marquee layer: the library positions the drawn box using viewport
             coordinates relative to this element's parent, so the parent must
@@ -341,29 +341,35 @@ export function Gallery({
         </div>
 
         {/* Content header: breadcrumbs + title left, sort controls right. */}
-        <header className="mb-5">
-          {!isRoot ? (
-            <nav aria-label="Breadcrumb" className="mb-1 flex items-center gap-1 text-[13px] text-neutral-500">
-              {(breadcrumbs.length
-                ? breadcrumbs
-                : [{ id: ROOT_BOARD_ID, title: "Air Branded Boards" }]
-              ).map((crumb, i) => (
-                <React.Fragment key={crumb.id}>
-                  {i > 0 ? <span className="text-neutral-300">/</span> : null}
-                  <Link
-                    href={
-                      crumb.id === ROOT_BOARD_ID
-                        ? "/"
-                        : boardHref(crumb.id, crumb.title, breadcrumbs.slice(0, i))
-                    }
-                    className="max-w-[180px] truncate rounded px-1 py-0.5 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-                  >
-                    {crumb.title}
-                  </Link>
-                </React.Fragment>
-              ))}
-            </nav>
-          ) : null}
+        <header className="mb-4">
+          <nav aria-label="Breadcrumb" className="mb-3 flex items-center gap-1.5 text-[13px] text-neutral-600">
+            <svg width="15" height="15" viewBox="0 0 20 20" fill="none" className="shrink-0 text-neutral-500">
+              <rect x="3" y="3.5" width="14" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M3 7h14" stroke="currentColor" strokeWidth="1.4" />
+            </svg>
+            {[...(isRoot ? [] : breadcrumbs.length ? breadcrumbs : [{ id: ROOT_BOARD_ID, title: "Air Branded Boards" }]), null].map(
+              (crumb, i, arr) =>
+                crumb ? (
+                  <React.Fragment key={crumb.id}>
+                    <Link
+                      href={
+                        crumb.id === ROOT_BOARD_ID
+                          ? "/"
+                          : boardHref(crumb.id, crumb.title, breadcrumbs.slice(0, i))
+                      }
+                      className="max-w-[180px] truncate rounded px-0.5 py-0.5 transition-colors hover:text-neutral-900 hover:underline"
+                    >
+                      {crumb.title}
+                    </Link>
+                    <span className="text-neutral-300">/</span>
+                  </React.Fragment>
+                ) : (
+                  <span key="current" className="truncate font-medium text-neutral-900">
+                    {boardTitle}
+                  </span>
+                )
+            )}
+          </nav>
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
               {!isRoot ? (
@@ -383,6 +389,7 @@ export function Gallery({
             </div>
             <SortControls sort={sort} onSortChange={setSort} />
           </div>
+          <div className="-mx-4 mt-4 border-b border-neutral-200/80 sm:-mx-6 lg:-mx-8" />
         </header>
 
         {isSearching ? (

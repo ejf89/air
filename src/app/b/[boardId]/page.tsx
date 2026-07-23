@@ -18,7 +18,7 @@ export default function BoardPage({
   }
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen">
       <Gallery boardId={params.boardId} title={searchParams.title} navPath={navPath} />
     </main>
   );
