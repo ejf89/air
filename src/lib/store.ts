@@ -1,7 +1,54 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { arrayMove } from "@dnd-kit/sortable";
 import type { Clip } from "@/app/api/clips";
+
+/**
+ * localStorage wrapper with a trailing-debounced setItem: persist runs on
+ * EVERY store write, and rubber-band drags update the selection per
+ * (throttled) mousemove — without this, each tick pays a synchronous
+ * JSON.stringify + localStorage write on the main thread. Flushes on
+ * pagehide so nothing is lost on tab close.
+ */
+function createDebouncedStorage(delayMs: number): Storage {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let pending: [string, string] | null = null;
+
+  const flush = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    if (pending) {
+      try {
+        window.localStorage.setItem(pending[0], pending[1]);
+      } catch {
+        // storage full/unavailable — nothing useful to do
+      }
+      pending = null;
+    }
+  };
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("pagehide", flush);
+  }
+
+  return {
+    getItem: (key) => window.localStorage.getItem(key),
+    setItem: (key, value) => {
+      pending = [key, value];
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(flush, delayMs);
+    },
+    removeItem: (key) => {
+      pending = null;
+      window.localStorage.removeItem(key);
+    },
+    get length() {
+      return window.localStorage.length;
+    },
+    clear: () => window.localStorage.clear(),
+    key: (i) => window.localStorage.key(i),
+  };
+}
 
 interface GalleryState {
   // id -> full asset record, populated as pages load, independent of
@@ -208,6 +255,7 @@ export const useGalleryStore = create<GalleryState>()(
     }),
     {
       name: "air-gallery-demo-state-v2",
+      storage: createJSONStorage(() => createDebouncedStorage(500)),
       partialize: (state) => ({
         orderByBoard: state.orderByBoard,
         boardOverrides: state.boardOverrides,

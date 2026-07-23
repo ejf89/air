@@ -7,6 +7,8 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: `Air's Gallery Challenge`,
+  description:
+    "A performance-first rebuild of Air's gallery view — a virtualized, justified wall of images and videos with drag-and-drop, rubber-band selection, search, and sort.",
 };
 
 export default function RootLayout({

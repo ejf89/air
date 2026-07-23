@@ -57,6 +57,12 @@ export function AssetGrid({
     [serverMode, items, localOrder]
   );
 
+  // Stable getter so tiles can read the current order at event time
+  // without receiving the churning array as a prop (see AssetTileProps).
+  const orderRef = React.useRef(order);
+  orderRef.current = order;
+  const getOrder = React.useCallback(() => orderRef.current, []);
+
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = React.useState(0);
   const [scrollMargin, setScrollMargin] = React.useState(0);
@@ -205,7 +211,7 @@ export function AssetGrid({
                   >
                     <AssetTile
                       asset={asset}
-                      order={order}
+                      getOrder={getOrder}
                       width={tile.displayWidth}
                       height={tile.displayHeight}
                       reorderable={!serverMode}

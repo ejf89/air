@@ -23,6 +23,7 @@ import { BoardCard } from "./BoardCard";
 import { Section } from "./Section";
 import { SelectionBar } from "./SelectionBar";
 import { Toast } from "./Toast";
+import { Tour } from "./Tour";
 import { SearchBox, SortControls, type SortMode } from "./Toolbar";
 import { boardHref, type Crumb } from "./BoardMenu";
 
@@ -442,6 +443,7 @@ export function Gallery({
 
       <SelectionBar boardTitle={boardTitle} />
       <Toast />
+      {isRoot ? <Tour /> : null}
 
       <DragOverlay dropAnimation={null}>
         {activeAsset ? (
@@ -450,6 +452,8 @@ export function Gallery({
             <img
               src={imgixThumb(activeAsset.assets.image, 96, 96)}
               alt=""
+              width={96}
+              height={96}
               className="h-full w-full object-cover"
             />
             {activeCount > 1 ? (

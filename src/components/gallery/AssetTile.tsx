@@ -4,13 +4,16 @@ import * as React from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { useGalleryStore } from "@/lib/store";
-import { imgixEager, imgixThumb } from "@/lib/imgix";
+import { imgixEagerThumb, imgixThumb } from "@/lib/imgix";
 import type { Clip } from "@/app/api/clips";
 import { AssetContextMenu, AssetEllipsisButton } from "./AssetMenu";
 
 export interface AssetTileProps {
   asset: Clip;
-  order: string[]; // this board's full ordered list of asset ids, needed for shift+click range select
+  /** Stable getter for the board's current ordered id list — read at
+   *  event time (shift+click range) so the array's identity churn on every
+   *  fetch/reorder never busts React.memo for mounted tiles. */
+  getOrder: () => string[];
   width: number; // computed display width in px (from justified layout, upstream)
   height: number; // computed display height in px
   /** False in server-driven views (search / explicit sort), where manual
@@ -79,7 +82,7 @@ function HoverPreview({ src }: { src: string }): JSX.Element {
 }
 
 function AssetTileImpl(props: AssetTileProps): JSX.Element {
-  const { asset, order, width, height, reorderable = true, eager = false } = props;
+  const { asset, getOrder, width, height, reorderable = true, eager = false } = props;
 
   // Derived-boolean selectors (not the raw `selectedIds` array reference) so
   // zustand only re-renders THIS tile when its own membership/hover state
@@ -139,14 +142,14 @@ function AssetTileImpl(props: AssetTileProps): JSX.Element {
   const handleClick = React.useCallback(
     (e: React.MouseEvent) => {
       if (e.shiftKey) {
-        selectRange(asset.id, order);
+        selectRange(asset.id, getOrder());
       } else if (e.metaKey || e.ctrlKey) {
         toggleSelect(asset.id);
       } else {
         select(asset.id);
       }
     },
-    [asset.id, order, selectRange, toggleSelect, select]
+    [asset.id, getOrder, selectRange, toggleSelect, select]
   );
 
   const style: React.CSSProperties = {
@@ -188,13 +191,17 @@ function AssetTileImpl(props: AssetTileProps): JSX.Element {
             from the poster instead of flashing a black loading frame. */}
         {/* eslint-disable-next-line @next/next/no-img-element -- imgix already serves right-sized, format-negotiated thumbs; next/image's per-tile observers fight the virtualizer at 500+ tiles */}
         <img
-          src={eager ? imgixEager(asset.assets.image) : imgixThumb(asset.assets.image, width, height)}
+          src={eager ? imgixEagerThumb(asset.assets.image) : imgixThumb(asset.assets.image, width, height)}
           alt={asset.title ?? asset.importedName ?? ""}
+          width={Math.round(width)}
+          height={Math.round(height)}
           className="w-full h-full object-cover"
           loading={eager ? "eager" : "lazy"}
-          fetchPriority={eager ? "high" : undefined}
           decoding="async"
           draggable={false}
+          // React 18.2 predates the camelCase fetchPriority prop — render
+          // the DOM attribute directly so it actually reaches the element.
+          {...(eager ? { fetchpriority: "high" } : {})}
         />
         {isHoveredVideo ? <HoverPreview src={asset.assets.previewVideo!} /> : null}
 

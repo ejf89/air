@@ -27,6 +27,7 @@ function BoardCardImpl({ board, path }: BoardCardProps): JSX.Element {
     <BoardContextMenu boardId={board.id} boardTitle={board.title} path={path}>
       <div
         ref={setNodeRef}
+        data-board-card=""
         role="button"
         tabIndex={0}
         onClick={() => router.push(boardHref(board.id, board.title, path))}
@@ -45,6 +46,8 @@ function BoardCardImpl({ board, path }: BoardCardProps): JSX.Element {
           <img
             src={imgixThumb(thumb, 400, 250)}
             alt=""
+            width={400}
+            height={250}
             draggable={false}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
           />

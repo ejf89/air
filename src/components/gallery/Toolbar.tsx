@@ -32,7 +32,7 @@ export interface SearchBoxProps {
 /** The centered top-bar search field, like the reference site's. */
 export function SearchBox({ value, onChange, placeholder }: SearchBoxProps): JSX.Element {
   return (
-    <div className="relative w-full">
+    <div className="relative w-full" data-tour="search">
       <svg
         width="15"
         height="15"
