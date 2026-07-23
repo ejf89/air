@@ -40,32 +40,45 @@ below the cut line gets documented as "not done" rather than half-built.
 ### Setup
 - [x] Flatten starter repo into git root
 - [x] Install base deps
-- [ ] Install additional packages (react-query, react-virtual, dnd-kit,
-      react-drag-to-select, radix context/dropdown menu)
-- [ ] Base layout shell + Tailwind pass matching Air's look
+- [x] Install additional packages (react-query, react-virtual, dnd-kit,
+      react-drag-to-select, radix context/dropdown menu, zustand)
+- [x] Fix starter bugs found in adversarial pass: `Board.pos` typed as
+      number but is a numeric string; TS 5.3.3 too old for react-query v5
+      types (silently degraded `data` to `any`) — upgraded to TS 5.6
 
 ### Data layer
-- [ ] Parameterize `fetchAssets` by `boardId` (starter hardcodes root board)
-- [ ] React Query setup: boards query (recursive per section), assets
+- [x] Parameterize `fetchAssets` by `boardId` (starter hardcodes root board)
+- [x] React Query: board tree query (BFS, parallel per level), assets
       infinite query (cursor pagination) per board
-- [ ] Loading / empty / error states per section
+- [x] Loading / empty states per grid
 
-### Core gallery
-- [ ] Collapsible recursive board sections
-- [ ] Justified masonry grid, virtualized by row
-- [ ] Infinite scroll within a section
+### Core gallery (restructured to match reference site)
+- [x] "Boards" collapsible section with Air-style board cards
+      (thumbnail + gradient + white title)
+- [x] "Assets" collapsible section: justified wall from real API
+      width/height, window-scroll virtualization by row
+- [x] Infinite scroll (cursor pagination + virtualizer-driven prefetch)
+- [x] Board card click → inline expandable panel with that board's assets
+- [x] Fixed: measurement container must always mount (early-return skeleton
+      branch left containerWidth at 0 → blank wall)
 
 ### Interactions
-- [ ] Drag-to-reorder assets within a board
-- [ ] Drag-to-move assets into a sub-board (drop target = board section)
-- [ ] Rubber-band multi-select (react-drag-to-select)
-- [ ] Ellipsis hover menu (board + asset), selection-count aware
-- [ ] Right-click context menu (board + asset), selection-count aware
+- [x] Drag-to-reorder assets within a board (dnd-kit, 8px activation)
+- [x] Drag-to-move assets into a sub-board (drop on board card, works
+      with multi-selection + count badge on drag overlay)
+- [x] Rubber-band multi-select (react-drag-to-select)
+- [x] Shift+click range select, cmd/ctrl+click toggle, Esc clears
+- [x] Ellipsis hover menu matching demo exactly (Open, Share a link,
+      Copy to Air workspace, Download) — count-aware when multi-selected
+- [x] Right-click context menu (same items), boards too
+- [x] Bottom "N selected" floating bar (Download / Move to / Clear)
 
 ### Polish
-- [ ] Match/improve visual design
-- [ ] Responsive down to 320px
-- [ ] Video hover preview (single active slot)
+- [x] Match visual design (verified via headless Chrome screenshots)
+- [ ] Responsive down to 320px — needs verification pass
+- [x] Video hover preview (single active `<video>` slot app-wide)
+- [ ] In-browser interaction verification (drag, select, menus) — USER TEST
+- [ ] Perf pass: 500+ assets with 6x CPU throttle
 
 ### Ship
 - [ ] README: what was built, assumptions, bonus notes

@@ -71,22 +71,25 @@ export interface ClipsListResponse {
   };
 }
 
-const boardId = "c74bbbc8-602b-4c88-be71-9e21b36b0514";
-const shortId = "bDkBvnzpB";
+import { ROOT_BOARD_ID, SHORT_ID } from "./boards";
 
 export const fetchAssets = ({
+  boardId = ROOT_BOARD_ID,
   cursor,
+  limit = 60,
 }: {
+  boardId?: string;
   cursor: string | null;
+  limit?: number;
 }): Promise<ClipsListResponse> =>
-  fetch(`https://api.air.inc/shorturl/${shortId}/clips/search`, {
+  fetch(`https://api.air.inc/shorturl/${SHORT_ID}/clips/search`, {
     method: "post",
     headers: {
       accept: "application/json",
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      limit: 24,
+      limit,
       type: "all",
       withOpenDiscussionStatus: true,
       filters: {
@@ -99,7 +102,6 @@ export const fetchAssets = ({
         direction: "desc",
         name: "dateModified",
       },
-      descendantBoardId: boardId,
       cursor,
     }),
   }).then((r) => r.json());
