@@ -1,4 +1,5 @@
 import { fetchBoards } from "@/app/api/boards";
+import { imgixEager, imgixThumb } from "@/lib/imgix";
 import { fetchAssets } from "@/app/api/clips";
 import { Gallery } from "@/components/gallery/Gallery";
 
@@ -15,8 +16,22 @@ export default async function Home() {
     fetchAssets({ cursor: null }).catch(() => undefined),
   ]);
 
+  // Preload the first wall images + board thumbs: these exact URLs are what
+  // the eager tiles render, so the LCP image request starts at HTML parse
+  // time instead of after hydration measures the layout.
+  const preloadImages = [
+    ...(initialBoards?.data.slice(0, 4).map((b) => b.thumbnails?.[0]).filter(Boolean) ?? []).map(
+      (u) => imgixThumb(u as string, 400, 250)
+    ),
+    ...(initialAssets?.data.clips.slice(0, 6) ?? []).map((c) => imgixEager(c.assets.image)),
+  ];
+
   return (
     <main className="min-h-screen">
+      {preloadImages.map((href) => (
+        // eslint-disable-next-line @next/next/no-head-element -- React hoists these to <head>
+        <link key={href} rel="preload" as="image" href={href} fetchPriority="high" />
+      ))}
       <Gallery initialBoards={initialBoards} initialAssets={initialAssets} />
     </main>
   );

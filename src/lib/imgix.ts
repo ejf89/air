@@ -4,6 +4,27 @@
  * imgix for exactly the box we're going to render (times DPR, capped) so
  * the network/decode cost matches what's on screen.
  */
+/**
+ * Fixed-size variant for above-the-fold tiles: the URL doesn't depend on the
+ * client-measured layout, so the server can emit <link rel="preload"> for
+ * these exact URLs in the HTML — the browser starts fetching the LCP image
+ * at parse time instead of after hydrate+measure. The slight crop-aspect
+ * mismatch is hidden by object-cover.
+ */
+export function imgixEager(url: string): string {
+  try {
+    const u = new URL(url);
+    u.searchParams.set("w", "800");
+    u.searchParams.set("h", "600");
+    u.searchParams.set("fit", "crop");
+    u.searchParams.set("auto", "format,compress");
+    u.searchParams.set("q", "60");
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 export function imgixThumb(url: string, width: number, height: number): string {
   try {
     const u = new URL(url);

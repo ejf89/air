@@ -4,7 +4,7 @@ import * as React from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { useGalleryStore } from "@/lib/store";
-import { imgixThumb } from "@/lib/imgix";
+import { imgixEager, imgixThumb } from "@/lib/imgix";
 import type { Clip } from "@/app/api/clips";
 import { AssetContextMenu, AssetEllipsisButton } from "./AssetMenu";
 
@@ -188,7 +188,7 @@ function AssetTileImpl(props: AssetTileProps): JSX.Element {
             from the poster instead of flashing a black loading frame. */}
         {/* eslint-disable-next-line @next/next/no-img-element -- imgix already serves right-sized, format-negotiated thumbs; next/image's per-tile observers fight the virtualizer at 500+ tiles */}
         <img
-          src={imgixThumb(asset.assets.image, width, height)}
+          src={eager ? imgixEager(asset.assets.image) : imgixThumb(asset.assets.image, width, height)}
           alt={asset.title ?? asset.importedName ?? ""}
           className="w-full h-full object-cover"
           loading={eager ? "eager" : "lazy"}
