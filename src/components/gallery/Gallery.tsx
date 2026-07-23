@@ -19,6 +19,7 @@ import { AssetGrid } from "./AssetGrid";
 import { BoardCard } from "./BoardCard";
 import { Section } from "./Section";
 import { SelectionBar } from "./SelectionBar";
+import { Toolbar, type SortMode } from "./Toolbar";
 
 const BOARD_DROP_PREFIX = "board-drop-";
 const ASSET_DROP_PREFIX = "asset-drop-";
@@ -71,6 +72,21 @@ export function Gallery(): JSX.Element {
   const reorder = useGalleryStore((s) => s.reorder);
   const moveManyToBoard = useGalleryStore((s) => s.moveManyToBoard);
   const clearSelection = useGalleryStore((s) => s.clearSelection);
+
+  // ---- search + sort ------------------------------------------------------
+  const [searchInput, setSearchInput] = React.useState("");
+  const [search, setSearch] = React.useState("");
+  const [sort, setSort] = React.useState<SortMode>({ kind: "custom" });
+
+  // Debounce keystrokes so we don't hammer the API mid-word.
+  React.useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const isSearching = search.length > 0;
+  const serverSort = sort.kind === "server" ? sort.field : undefined;
+  const serverMode = isSearching || sort.kind === "server";
 
   // Esc anywhere clears the current selection.
   React.useEffect(() => {
@@ -125,7 +141,16 @@ export function Gallery(): JSX.Element {
         const sourceBoardId = Object.entries(state.orderByBoard).find(([, list]) =>
           list.includes(activeId)
         )?.[0];
-        if (sourceBoardId) reorder(sourceBoardId, activeId, overAssetId);
+        if (!sourceBoardId) return;
+        // Dragging one tile of a multi-selection reorders the whole group —
+        // but only the part of the selection living in the same board.
+        const group =
+          state.selectedIds.includes(activeId) && state.selectedIds.length > 1
+            ? state.selectedIds.filter((id) =>
+                state.orderByBoard[sourceBoardId]?.includes(id)
+              )
+            : [activeId];
+        reorder(sourceBoardId, group.length ? group : [activeId], overAssetId);
       }
     },
     [reorder, moveManyToBoard]
@@ -156,38 +181,70 @@ export function Gallery(): JSX.Element {
           <h1 className="text-2xl font-bold tracking-tight text-neutral-900">{rootTitle}</h1>
         </header>
 
-        {rootChildren.length ? (
-          <Section storeKey="section:boards" title="Boards" count={rootChildren.length}>
-            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-              {rootChildren.map((b) => (
-                <BoardCard key={b.id} board={b} />
-              ))}
-            </div>
+        <Toolbar
+          search={searchInput}
+          onSearchChange={setSearchInput}
+          sort={sort}
+          onSortChange={setSort}
+        />
 
-            {openBoards.map((b) => (
-              <div key={b.id} className="mb-4 rounded-xl border border-neutral-200/70 p-3">
-                <div className="mb-2 flex items-center justify-between px-1">
-                  <h3 className="text-sm font-semibold text-neutral-800">{b.title}</h3>
-                  <button
-                    type="button"
-                    onClick={() => useGalleryStore.getState().toggleExpanded(b.id)}
-                    className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
-                    aria-label={`Collapse ${b.title}`}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                      <path d="M3.5 3.5l7 7m0-7l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                  </button>
-                </div>
-                <AssetGrid boardId={b.id} />
-              </div>
-            ))}
+        {isSearching ? (
+          // Search results are a flat view across the whole board tree,
+          // like the reference site's ?q= mode.
+          <Section storeKey="section:results" title={`Results for “${search}”`}>
+            <AssetGrid
+              boardId={ROOT_BOARD_ID}
+              queryOptions={{
+                search,
+                sortField: serverSort,
+                includeDescendants: true,
+                serverMode: true,
+              }}
+              emptyMessage={`No assets matching “${search}”.`}
+            />
           </Section>
-        ) : null}
+        ) : (
+          <>
+            {rootChildren.length ? (
+              <Section storeKey="section:boards" title="Boards" count={rootChildren.length}>
+                <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                  {rootChildren.map((b) => (
+                    <BoardCard key={b.id} board={b} />
+                  ))}
+                </div>
 
-        <Section storeKey="section:assets" title="Assets">
-          <AssetGrid boardId={ROOT_BOARD_ID} />
-        </Section>
+                {openBoards.map((b) => (
+                  <div key={b.id} className="mb-4 rounded-xl border border-neutral-200/70 p-3">
+                    <div className="mb-2 flex items-center justify-between px-1">
+                      <h3 className="text-sm font-semibold text-neutral-800">{b.title}</h3>
+                      <button
+                        type="button"
+                        onClick={() => useGalleryStore.getState().toggleExpanded(b.id)}
+                        className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+                        aria-label={`Collapse ${b.title}`}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M3.5 3.5l7 7m0-7l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                    </div>
+                    <AssetGrid
+                      boardId={b.id}
+                      queryOptions={serverMode ? { sortField: serverSort, serverMode } : undefined}
+                    />
+                  </div>
+                ))}
+              </Section>
+            ) : null}
+
+            <Section storeKey="section:assets" title="Assets">
+              <AssetGrid
+                boardId={ROOT_BOARD_ID}
+                queryOptions={serverMode ? { sortField: serverSort, serverMode } : undefined}
+              />
+            </Section>
+          </>
+        )}
       </div>
 
       <SelectionBar boardTitle={rootTitle} />

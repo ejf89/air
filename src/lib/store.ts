@@ -16,13 +16,17 @@ interface GalleryState {
   boardOverrides: Record<string, string>;
   expanded: Record<string, boolean>;
   selectedIds: string[];
+  // Mirror of selectedIds for O(1) membership checks — every mounted tile
+  // subscribes to membership, and rubber-band drags update selection on
+  // every (throttled) mousemove, so .includes() over an array would be
+  // O(selection) x tiles x frames under CPU throttle.
+  selectedSet: Set<string>;
   hoveredAssetId: string | null;
   lastSelectedId: string | null;
 
   upsertAssets: (clips: Clip[]) => void;
   ensureOrder: (boardId: string, ids: string[]) => void;
-  reorder: (boardId: string, activeId: string, overId: string) => void;
-  moveToBoard: (assetId: string, toBoardId: string) => void;
+  reorder: (boardId: string, activeIds: string[], overId: string) => void;
   moveManyToBoard: (assetIds: string[], toBoardId: string) => void;
   removeFromBoard: (assetIds: string[], boardId: string) => void;
   deleteAssets: (assetIds: string[]) => void;
@@ -38,6 +42,8 @@ interface GalleryState {
   clearSelection: () => void;
 }
 
+const sel = (ids: string[]) => ({ selectedIds: ids, selectedSet: new Set(ids) });
+
 export const useGalleryStore = create<GalleryState>()(
   persist(
     (set, get) => ({
@@ -45,7 +51,7 @@ export const useGalleryStore = create<GalleryState>()(
       orderByBoard: {},
       boardOverrides: {},
       expanded: {},
-      selectedIds: [],
+      ...sel([]),
       hoveredAssetId: null,
       lastSelectedId: null,
 
@@ -74,22 +80,32 @@ export const useGalleryStore = create<GalleryState>()(
           };
         }),
 
-      reorder: (boardId, activeId, overId) =>
+      // Reorder one or many: the dragged group is pulled out of the list and
+      // re-inserted as a contiguous block at the drop target's position.
+      reorder: (boardId, activeIds, overId) =>
         set((state) => {
           const list = state.orderByBoard[boardId];
-          if (!list) return state;
-          const from = list.indexOf(activeId);
-          const to = list.indexOf(overId);
-          if (from === -1 || to === -1 || from === to) return state;
-          return {
-            orderByBoard: {
-              ...state.orderByBoard,
-              [boardId]: arrayMove(list, from, to),
-            },
-          };
+          if (!list || activeIds.includes(overId)) return state;
+          if (activeIds.length === 1) {
+            const from = list.indexOf(activeIds[0]);
+            const to = list.indexOf(overId);
+            if (from === -1 || to === -1 || from === to) return state;
+            return {
+              orderByBoard: { ...state.orderByBoard, [boardId]: arrayMove(list, from, to) },
+            };
+          }
+          const moving = new Set(activeIds);
+          const remaining = list.filter((id) => !moving.has(id));
+          const insertAt = remaining.indexOf(overId);
+          if (insertAt === -1) return state;
+          const block = list.filter((id) => moving.has(id));
+          const next = [
+            ...remaining.slice(0, insertAt),
+            ...block,
+            ...remaining.slice(insertAt),
+          ];
+          return { orderByBoard: { ...state.orderByBoard, [boardId]: next } };
         }),
-
-      moveToBoard: (assetId, toBoardId) => get().moveManyToBoard([assetId], toBoardId),
 
       moveManyToBoard: (assetIds, toBoardId) =>
         set((state) => {
@@ -107,7 +123,7 @@ export const useGalleryStore = create<GalleryState>()(
               orderByBoard[toBoardId] = [assetId, ...destination];
             }
           }
-          return { orderByBoard, boardOverrides, selectedIds: [] };
+          return { orderByBoard, boardOverrides, ...sel([]) };
         }),
 
       removeFromBoard: (assetIds, boardId) =>
@@ -120,7 +136,7 @@ export const useGalleryStore = create<GalleryState>()(
               ...state.orderByBoard,
               [boardId]: list.filter((id) => !removeSet.has(id)),
             },
-            selectedIds: state.selectedIds.filter((id) => !removeSet.has(id)),
+            ...sel(state.selectedIds.filter((id) => !removeSet.has(id))),
           };
         }),
 
@@ -141,7 +157,7 @@ export const useGalleryStore = create<GalleryState>()(
             orderByBoard,
             assetById,
             boardOverrides,
-            selectedIds: state.selectedIds.filter((id) => !removeSet.has(id)),
+            ...sel(state.selectedIds.filter((id) => !removeSet.has(id))),
           };
         }),
 
@@ -153,15 +169,17 @@ export const useGalleryStore = create<GalleryState>()(
 
       setHovered: (id) => set({ hoveredAssetId: id }),
 
-      select: (id) => set({ selectedIds: [id], lastSelectedId: id }),
+      select: (id) => set({ ...sel([id]), lastSelectedId: id }),
 
       toggleSelect: (id) =>
         set((state) => {
           const has = state.selectedIds.includes(id);
           return {
-            selectedIds: has
-              ? state.selectedIds.filter((s) => s !== id)
-              : [...state.selectedIds, id],
+            ...sel(
+              has
+                ? state.selectedIds.filter((s) => s !== id)
+                : [...state.selectedIds, id]
+            ),
             lastSelectedId: id,
           };
         }),
@@ -171,15 +189,15 @@ export const useGalleryStore = create<GalleryState>()(
           const anchor = state.lastSelectedId ?? id;
           const a = orderedIds.indexOf(anchor);
           const b = orderedIds.indexOf(id);
-          if (a === -1 || b === -1) return { selectedIds: [id], lastSelectedId: id };
+          if (a === -1 || b === -1) return { ...sel([id]), lastSelectedId: id };
           const [start, end] = a < b ? [a, b] : [b, a];
           const range = orderedIds.slice(start, end + 1);
           const merged = new Set([...state.selectedIds, ...range]);
-          return { selectedIds: Array.from(merged), lastSelectedId: id };
+          return { ...sel(Array.from(merged)), lastSelectedId: id };
         }),
 
-      setSelection: (ids) => set({ selectedIds: ids }),
-      clearSelection: () => set({ selectedIds: [] }),
+      setSelection: (ids) => set(sel(ids)),
+      clearSelection: () => set(sel([])),
     }),
     {
       name: "air-gallery-demo-state-v2",

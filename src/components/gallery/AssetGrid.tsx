@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useSelectionContainer, boxesIntersect } from "react-drag-to-select";
-import { useBoardAssets } from "@/hooks/useBoardAssets";
+import { useBoardAssets, type AssetQueryOptions } from "@/hooks/useBoardAssets";
 import { useGalleryStore } from "@/lib/store";
 import { computeJustifiedRows } from "@/lib/justifiedLayout";
 import { AssetTile } from "./AssetTile";
@@ -13,6 +13,11 @@ const GAP = 8;
 
 export interface AssetGridProps {
   boardId: string;
+  /** Server-driven search/sort. When set, the server's order is rendered
+   *  directly and manual reordering is disabled (matches Air: manual
+   *  arrangement only exists in "Custom" sort). */
+  queryOptions?: AssetQueryOptions;
+  emptyMessage?: string;
 }
 
 /**
@@ -21,16 +26,24 @@ export interface AssetGridProps {
  * only visible rows are mounted via window-scroll virtualization — the whole
  * page scrolls as one surface, like the real Air gallery.
  */
-export function AssetGrid({ boardId }: AssetGridProps): JSX.Element {
-  const { fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, total } =
-    useBoardAssets(boardId, true);
+export function AssetGrid({ boardId, queryOptions, emptyMessage }: AssetGridProps): JSX.Element {
+  const serverMode = Boolean(queryOptions?.serverMode);
+  const { clips, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, total } =
+    useBoardAssets(boardId, true, queryOptions);
 
-  const order = useGalleryStore((s) => s.orderByBoard[boardId]) ?? EMPTY;
+  const localOrder = useGalleryStore((s) => s.orderByBoard[boardId]) ?? EMPTY;
   const assetById = useGalleryStore((s) => s.assetById);
 
-  const items = React.useMemo(
-    () => order.map((id) => assetById[id]).filter((a): a is NonNullable<typeof a> => Boolean(a)),
-    [order, assetById]
+  const items = React.useMemo(() => {
+    if (serverMode) return clips;
+    return localOrder
+      .map((id) => assetById[id])
+      .filter((a): a is NonNullable<typeof a> => Boolean(a));
+  }, [serverMode, clips, localOrder, assetById]);
+
+  const order = React.useMemo(
+    () => (serverMode ? items.map((c) => c.id) : localOrder),
+    [serverMode, items, localOrder]
   );
 
   const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -108,7 +121,10 @@ export function AssetGrid({ boardId }: AssetGridProps): JSX.Element {
           matched.push(id);
         }
       });
-      setSelection(matched);
+      // Shift+lasso adds to the selection captured at gesture start;
+      // a plain lasso replaces it.
+      const base = shiftLassoBaseRef.current;
+      setSelection(base ? Array.from(new Set([...base, ...matched])) : matched);
     },
     selectionProps: {
       style: {
@@ -133,8 +149,15 @@ export function AssetGrid({ boardId }: AssetGridProps): JSX.Element {
   // for the duration of the gesture opens the gate. dnd-kit is symmetrically
   // gated by a shift-aware sensor in Gallery.tsx. One DOM write per gesture,
   // no React re-render of any tile.
+  const shiftLassoBaseRef = React.useRef<string[] | null>(null);
   const handlePointerDownCapture = React.useCallback((e: React.PointerEvent) => {
-    if (!e.shiftKey) return;
+    if (!e.shiftKey) {
+      shiftLassoBaseRef.current = null;
+      return;
+    }
+    // Snapshot the selection so the shift+lasso adds to it instead of
+    // replacing it.
+    shiftLassoBaseRef.current = useGalleryStore.getState().selectedIds;
     const tile = (e.target as HTMLElement).closest<HTMLElement>('[data-draggable]');
     if (!tile) return;
     tile.dataset.draggable = "false";
@@ -159,7 +182,7 @@ export function AssetGrid({ boardId }: AssetGridProps): JSX.Element {
       <DragSelection />
       {isEmpty ? (
         <div className="rounded-lg border border-dashed border-neutral-200 px-4 py-10 text-center text-sm text-neutral-400">
-          No assets in this board — drag some in.
+          {emptyMessage ?? "No assets in this board — drag some in."}
         </div>
       ) : null}
       {showSkeleton ? (
@@ -198,6 +221,7 @@ export function AssetGrid({ boardId }: AssetGridProps): JSX.Element {
                       order={order}
                       width={tile.displayWidth}
                       height={tile.displayHeight}
+                      reorderable={!serverMode}
                     />
                   </div>
                 );

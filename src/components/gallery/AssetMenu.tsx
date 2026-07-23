@@ -66,10 +66,10 @@ export function EllipsisIcon() {
  */
 function useAssetMenuLogic(assetId: string) {
   const isInSelection = useGalleryStore(
-    (s) => s.selectedIds.includes(assetId) && s.selectedIds.length > 1
+    (s) => s.selectedSet.has(assetId) && s.selectedIds.length > 1
   );
   const count = useGalleryStore((s) =>
-    s.selectedIds.includes(assetId) && s.selectedIds.length > 1 ? s.selectedIds.length : 1
+    s.selectedSet.has(assetId) && s.selectedIds.length > 1 ? s.selectedIds.length : 1
   );
 
   const getTargets = React.useCallback(() => {

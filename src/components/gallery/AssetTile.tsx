@@ -14,6 +14,9 @@ export interface AssetTileProps {
   order: string[]; // this board's full ordered list of asset ids, needed for shift+click range select
   width: number; // computed display width in px (from justified layout, upstream)
   height: number; // computed display height in px
+  /** False in server-driven views (search / explicit sort), where manual
+   *  reordering doesn't apply — the tile stops being a drop target. */
+  reorderable?: boolean;
 }
 
 // ---- small module-level pieces (never recreated per render) ---------------
@@ -54,14 +57,14 @@ function PlayIcon(): JSX.Element {
 }
 
 function AssetTileImpl(props: AssetTileProps): JSX.Element {
-  const { asset, order, width, height } = props;
+  const { asset, order, width, height, reorderable = true } = props;
 
   // Derived-boolean selectors (not the raw `selectedIds` array reference) so
   // zustand only re-renders THIS tile when its own membership/hover state
   // actually flips, not on every selection change anywhere on the page —
   // with 500+ tiles mounted across sections, subscribing to the raw array
   // would re-render all of them on every click/rubber-band tick.
-  const isSelected = useGalleryStore((s) => s.selectedIds.includes(asset.id));
+  const isSelected = useGalleryStore((s) => s.selectedSet.has(asset.id));
   const isHoveredForVideo = useGalleryStore((s) => s.hoveredAssetId === asset.id);
   const setHovered = useGalleryStore((s) => s.setHovered);
   const select = useGalleryStore((s) => s.select);
@@ -76,6 +79,7 @@ function AssetTileImpl(props: AssetTileProps): JSX.Element {
   });
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `asset-drop-${asset.id}`,
+    disabled: !reorderable,
   });
 
   const setRefs = React.useCallback(

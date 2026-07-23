@@ -73,14 +73,28 @@ export interface ClipsListResponse {
 
 import { ROOT_BOARD_ID, SHORT_ID } from "./boards";
 
+// Sort fields verified against the live API.
+export type SortFieldName = "dateModified" | "dateCreated" | "dateTaken" | "name" | "size";
+export interface SortField {
+  name: SortFieldName;
+  direction: "asc" | "desc";
+}
+
 export const fetchAssets = ({
   boardId = ROOT_BOARD_ID,
   cursor,
   limit = 60,
+  search,
+  sortField = { direction: "desc", name: "dateModified" },
+  includeDescendants = false,
 }: {
   boardId?: string;
   cursor: string | null;
   limit?: number;
+  search?: string;
+  sortField?: SortField;
+  // When true (used for search), results include assets in nested boards.
+  includeDescendants?: boolean;
 }): Promise<ClipsListResponse> =>
   fetch(`https://api.air.inc/shorturl/${SHORT_ID}/clips/search`, {
     method: "post",
@@ -98,10 +112,9 @@ export const fetchAssets = ({
         },
       },
       boardId,
-      sortField: {
-        direction: "desc",
-        name: "dateModified",
-      },
+      sortField,
+      ...(search ? { search } : {}),
+      ...(includeDescendants ? { descendantBoardId: boardId } : {}),
       cursor,
     }),
   }).then((r) => r.json());

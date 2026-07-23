@@ -1,12 +1,38 @@
 import { useEffect, useMemo } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { fetchAssets } from "@/app/api/clips";
+import { fetchAssets, type SortField } from "@/app/api/clips";
 import { useGalleryStore } from "@/lib/store";
 
-export function useBoardAssets(boardId: string, enabled: boolean) {
+export interface AssetQueryOptions {
+  search?: string;
+  sortField?: SortField;
+  includeDescendants?: boolean;
+  /**
+   * Custom mode = the user's manual order (seeded from the server, then
+   * locally rearranged). Server modes (search / explicit sort) render the
+   * server's order directly and never write into the local order store.
+   */
+  serverMode?: boolean;
+}
+
+export function useBoardAssets(
+  boardId: string,
+  enabled: boolean,
+  opts: AssetQueryOptions = {}
+) {
+  const { search, sortField, includeDescendants, serverMode = false } = opts;
+
   const query = useInfiniteQuery({
-    queryKey: ["assets", boardId],
-    queryFn: ({ pageParam }) => fetchAssets({ boardId, cursor: pageParam }),
+    queryKey: [
+      "assets",
+      boardId,
+      search ?? "",
+      sortField?.name ?? "dateModified",
+      sortField?.direction ?? "desc",
+      includeDescendants ?? false,
+    ],
+    queryFn: ({ pageParam }) =>
+      fetchAssets({ boardId, cursor: pageParam, search, sortField, includeDescendants }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) =>
       lastPage.pagination.hasMore ? lastPage.pagination.cursor : undefined,
@@ -26,11 +52,14 @@ export function useBoardAssets(boardId: string, enabled: boolean) {
   useEffect(() => {
     if (!clips.length) return;
     upsertAssets(clips);
-    ensureOrder(boardId, clips.map((c) => c.id));
-  }, [clips, boardId, upsertAssets, ensureOrder]);
+    if (!serverMode) {
+      ensureOrder(boardId, clips.map((c) => c.id));
+    }
+  }, [clips, boardId, serverMode, upsertAssets, ensureOrder]);
 
   return {
     ...query,
+    clips,
     total,
     loadedCount: clips.length,
   };
