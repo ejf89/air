@@ -44,7 +44,10 @@ function BoardCardImpl({ board, path }: BoardCardProps): JSX.Element {
         {thumb ? (
           // eslint-disable-next-line @next/next/no-img-element -- imgix-optimized thumb
           <img
-            src={imgixThumb(thumb, 400, 250)}
+            // 300×188 CSS box covers the largest rendered card (~300px at
+            // xl) at DPR 2 → w=600 actual; the previous 400×250 (w=800)
+            // fetched ~1.8× the pixels any breakpoint displays.
+            src={imgixThumb(thumb, 300, 188)}
             alt=""
             width={400}
             height={250}

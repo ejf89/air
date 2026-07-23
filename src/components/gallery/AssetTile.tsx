@@ -33,7 +33,7 @@ function formatDuration(totalSeconds: number): string {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
-function formatSize(bytes: number): string {
+export function formatSize(bytes: number): string {
   if (!bytes) return "";
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -123,13 +123,20 @@ function AssetTileImpl(props: AssetTileProps): JSX.Element {
     };
   }, []);
 
-  const handleMouseEnter = React.useCallback(() => {
-    if (asset.type === "video" && asset.assets.previewVideo) {
-      hoverTimeout.current = setTimeout(() => setHovered(asset.id), 220);
-    }
-  }, [asset.type, asset.assets.previewVideo, asset.id, setHovered]);
+  // Mouse pointers only: on touch, a tap on an element whose enter-handler
+  // mutates the DOM is consumed as "hover" first (iOS especially), forcing a
+  // second tap to actually click — the two-tap-to-select bug.
+  const handlePointerEnter = React.useCallback(
+    (e: React.PointerEvent) => {
+      if (e.pointerType !== "mouse") return;
+      if (asset.type === "video" && asset.assets.previewVideo) {
+        hoverTimeout.current = setTimeout(() => setHovered(asset.id), 220);
+      }
+    },
+    [asset.type, asset.assets.previewVideo, asset.id, setHovered]
+  );
 
-  const handleMouseLeave = React.useCallback(() => {
+  const handlePointerLeave = React.useCallback(() => {
     if (hoverTimeout.current) {
       clearTimeout(hoverTimeout.current);
       hoverTimeout.current = null;
@@ -182,8 +189,8 @@ function AssetTileImpl(props: AssetTileProps): JSX.Element {
         }`}
         style={style}
         onClick={handleClick}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
         {...attributes}
         {...listeners}
       >
@@ -236,15 +243,30 @@ function AssetTileImpl(props: AssetTileProps): JSX.Element {
           </p>
         </div>
 
-        <div className="absolute top-1.5 left-1.5 z-10">
+        {/* Tappable select toggle: real button with a padded hit area.
+            stopPropagation on pointerdown keeps the dnd sensor and lasso from
+            claiming the press; [@media(hover:none)] shows the circle at rest
+            on touch devices, where group-hover can never reveal it. */}
+        <button
+          type="button"
+          aria-label={isSelected ? "Deselect asset" : "Select asset"}
+          aria-pressed={isSelected}
+          data-draggable="true"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleSelect(asset.id);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="absolute left-0 top-0 z-10 p-1.5 outline-none"
+        >
           {isSelected ? (
             <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 ring-2 ring-white opacity-100">
               <CheckIcon />
             </div>
           ) : (
-            <div className="h-5 w-5 rounded-full border-2 border-white/90 bg-black/10 opacity-0 transition-opacity group-hover:opacity-100" />
+            <div className="h-5 w-5 rounded-full border-2 border-white/90 bg-black/10 opacity-0 transition-opacity group-hover:opacity-100 [@media(hover:none)]:opacity-100" />
           )}
-        </div>
+        </button>
 
         <AssetEllipsisButton assetId={asset.id} />
       </div>

@@ -62,6 +62,7 @@ interface GalleryState {
   // assetId -> boardId, only present once a user has dragged it elsewhere.
   boardOverrides: Record<string, string>;
   expanded: Record<string, boolean>;
+  viewMode: "gallery" | "table";
   selectedIds: string[];
   // Mirror of selectedIds for O(1) membership checks — every mounted tile
   // subscribes to membership, and rubber-band drags update selection on
@@ -79,6 +80,7 @@ interface GalleryState {
   deleteAssets: (assetIds: string[]) => void;
 
   toggleExpanded: (boardId: string, defaultValue?: boolean) => void;
+  setViewMode: (mode: "gallery" | "table") => void;
 
   toast: { message: string; key: number } | null;
   showToast: (message: string) => void;
@@ -101,6 +103,7 @@ export const useGalleryStore = create<GalleryState>()(
       orderByBoard: {},
       boardOverrides: {},
       expanded: {},
+      viewMode: "gallery",
       ...sel([]),
       hoveredAssetId: null,
       lastSelectedId: null,
@@ -216,6 +219,8 @@ export const useGalleryStore = create<GalleryState>()(
           expanded: { ...state.expanded, [boardId]: !(state.expanded[boardId] ?? defaultValue) },
         })),
 
+      setViewMode: (mode) => set({ viewMode: mode }),
+
       toast: null,
       showToast: (message) =>
         set((state) => ({ toast: { message, key: (state.toast?.key ?? 0) + 1 } })),
@@ -260,6 +265,7 @@ export const useGalleryStore = create<GalleryState>()(
         orderByBoard: state.orderByBoard,
         boardOverrides: state.boardOverrides,
         expanded: state.expanded,
+        viewMode: state.viewMode,
       }),
     }
   )

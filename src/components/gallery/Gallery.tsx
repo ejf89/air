@@ -23,12 +23,23 @@ import { BoardCard } from "./BoardCard";
 import { Section } from "./Section";
 import { SelectionBar } from "./SelectionBar";
 import { Toast } from "./Toast";
-import { Tour } from "./Tour";
-import { SearchBox, SortControls, type SortMode } from "./Toolbar";
+import dynamic from "next/dynamic";
+import { SearchBox, SortControls, ViewSwitcher, type SortMode } from "./Toolbar";
 import { boardHref, type Crumb } from "./BoardMenu";
 
 const BOARD_DROP_PREFIX = "board-drop-";
 const ASSET_DROP_PREFIX = "asset-drop-";
+
+// Code-split off the gallery critical path: the tour only appears after the
+// page settles, and the table view only when the user switches to it —
+// neither belongs in the JS the LCP waits on.
+const Tour = dynamic(() => import("./Tour").then((m) => m.Tour), { ssr: false });
+const AssetTable = dynamic(() => import("./AssetTable").then((m) => m.AssetTable), {
+  ssr: false,
+  loading: () => (
+    <div className="animate-pulse py-10 text-center text-sm text-neutral-400">Loading table…</div>
+  ),
+});
 
 /**
  * Air's interaction model, enforced from the dnd side: a drag only starts
@@ -131,10 +142,12 @@ export function Gallery({
   const moveManyToBoard = useGalleryStore((s) => s.moveManyToBoard);
   const clearSelection = useGalleryStore((s) => s.clearSelection);
 
-  // ---- search + sort ------------------------------------------------------
+  // ---- search + sort + view ----------------------------------------------
   const [searchInput, setSearchInput] = React.useState("");
   const [search, setSearch] = React.useState("");
   const [sort, setSort] = React.useState<SortMode>({ kind: "custom" });
+  const viewMode = useGalleryStore((s) => s.viewMode);
+  const setViewMode = useGalleryStore((s) => s.setViewMode);
 
   // Debounce keystrokes so we don't hammer the API mid-word.
   React.useEffect(() => {
@@ -168,6 +181,14 @@ export function Gallery({
   const [mainEl, setMainEl] = React.useState<HTMLDivElement | null>(null);
   const setSelection = useGalleryStore((s) => s.setSelection);
 
+  // Rubber-band select is a mouse paradigm: on touch it fights page
+  // scrolling and swallows taps (part of the two-tap-to-select bug). Only
+  // hand the container to the selection library on hover-capable devices.
+  const [lassoEnabled, setLassoEnabled] = React.useState(false);
+  React.useEffect(() => {
+    setLassoEnabled(window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+  }, []);
+
   const shiftLassoBaseRef = React.useRef<string[] | null>(null);
   // A lasso release fires a click on the common ancestor of press/release
   // targets — i.e. the page container itself — which is indistinguishable
@@ -200,7 +221,7 @@ export function Gallery({
   }, []);
 
   const { DragSelection } = useSelectionContainer({
-    eventsElement: mainEl,
+    eventsElement: lassoEnabled ? mainEl : null,
     onSelectionChange: (box) => {
       // Verified empirically: the library reports the box in raw viewport
       // coordinates (clientX/Y), so it intersects directly with live
@@ -388,17 +409,21 @@ export function Gallery({
                 {boardTitle}
               </h1>
             </div>
-            <SortControls sort={sort} onSortChange={setSort} />
+            <div className="flex shrink-0 items-center gap-1">
+              <SortControls sort={sort} onSortChange={setSort} />
+              <ViewSwitcher view={viewMode} onChange={setViewMode} />
+            </div>
           </div>
           <div className="-mx-4 mt-4 border-b border-neutral-200/80 sm:-mx-6 lg:-mx-8" />
         </header>
 
         {isSearching ? (
-          // Search results are a flat view across this board's whole
-          // subtree, like the reference site's ?q= mode.
-          <Section storeKey="section:results" title={`Results for “${search}”`}>
-            <AssetGrid
+          viewMode === "table" ? (
+            <AssetTable
               boardId={boardId}
+              childPath={childPath}
+              sort={sort}
+              onSortChange={setSort}
               queryOptions={{
                 search,
                 sortField: serverSort,
@@ -407,7 +432,36 @@ export function Gallery({
               }}
               emptyMessage={`No assets matching “${search}”.`}
             />
-          </Section>
+          ) : (
+            // Search results are a flat view across this board's whole
+            // subtree, like the reference site's ?q= mode.
+            <Section storeKey="section:results" title={`Results for “${search}”`}>
+              <AssetGrid
+                boardId={boardId}
+                queryOptions={{
+                  search,
+                  sortField: serverSort,
+                  includeDescendants: true,
+                  serverMode: true,
+                }}
+                emptyMessage={`No assets matching “${search}”.`}
+              />
+            </Section>
+          )
+        ) : viewMode === "table" ? (
+          // Table view: boards + assets as one flat table, like Air's.
+          <AssetTable
+            boardId={boardId}
+            boards={childBoards}
+            childPath={childPath}
+            sort={sort}
+            onSortChange={setSort}
+            queryOptions={
+              serverMode
+                ? { sortField: serverSort, serverMode }
+                : { initialData: initialAssets }
+            }
+          />
         ) : (
           <>
             {isLoading || childBoards.length ? (

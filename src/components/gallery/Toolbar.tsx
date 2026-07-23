@@ -6,6 +6,7 @@ import type { SortField, SortFieldName } from "@/app/api/clips";
 import { MENU_CONTENT_CLASS, MENU_ITEM_CLASS } from "./AssetMenu";
 
 export type SortMode = { kind: "custom" } | { kind: "server"; field: SortField };
+export type ViewMode = "gallery" | "table";
 
 export const SORT_LABELS: Record<SortFieldName, string> = {
   dateModified: "Date modified",
@@ -132,6 +133,60 @@ export function SortControls({ sort, onSortChange }: SortControlsProps): JSX.Ele
         </button>
       ) : null}
     </div>
+  );
+}
+
+function GridIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" className="shrink-0">
+      <rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4" />
+      <rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4" />
+      <rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4" />
+      <rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+function ListIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" className="shrink-0">
+      <path d="M2.5 4h1M6 4h7.5M2.5 8h1M6 8h7.5M2.5 12h1M6 12h7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export interface ViewSwitcherProps {
+  view: ViewMode;
+  onChange: (view: ViewMode) => void;
+}
+
+/** Air-style view dropdown: Gallery (justified wall) or Table. */
+export function ViewSwitcher({ view, onChange }: ViewSwitcherProps): JSX.Element {
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          data-draggable="true"
+          type="button"
+          aria-label="Change view"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 data-[state=open]:bg-neutral-100"
+        >
+          {view === "gallery" ? <GridIcon /> : <ListIcon />}
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content align="end" sideOffset={6} className={MENU_CONTENT_CLASS}>
+          <DropdownMenu.Item className={MENU_ITEM_CLASS} onSelect={() => onChange("gallery")}>
+            <GridIcon /> Gallery
+            {view === "gallery" ? <Check /> : null}
+          </DropdownMenu.Item>
+          <DropdownMenu.Item className={MENU_ITEM_CLASS} onSelect={() => onChange("table")}>
+            <ListIcon /> Table
+            {view === "table" ? <Check /> : null}
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 

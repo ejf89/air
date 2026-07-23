@@ -35,7 +35,7 @@ export function SelectionBar({ boardTitle }: SelectionBarProps): JSX.Element | n
   };
 
   return (
-    <div className="fixed inset-x-2 bottom-2 z-40 sm:inset-x-4 sm:bottom-3">
+    <div className="fixed inset-x-2 bottom-2 z-40 pb-[env(safe-area-inset-bottom)] sm:inset-x-4 sm:bottom-3">
       <div className="flex items-center gap-2 rounded-xl bg-neutral-800 px-2 py-2 text-white shadow-2xl sm:px-3">
         <button
           type="button"
