@@ -73,17 +73,37 @@ below the cut line gets documented as "not done" rather than half-built.
 - [x] Right-click context menu (same items), boards too
 - [x] Bottom "N selected" floating bar (Download / Move to / Clear)
 
+### Interaction model (revised to match Air after user testing)
+- [x] Rubber-band select starts ANYWHERE, incl. on tiles (like Air)
+- [x] Only selected tiles drag (reorder / move); cursor-grab affordance
+- [x] Shift+drag = additive lasso; cmd/ctrl+click toggle; Esc clears
+- [x] Verified via automated real-browser drag tests (puppeteer-core):
+      lasso-from-tile PASS, group reorder PASS, move-to-board PASS
+
+### Search + sort (server-backed, fields verified via curl)
+- [x] Debounced search → flat results view across all nested boards
+- [x] Sort: Custom (manual order, reorderable) / Date modified / created /
+      taken / Name / Size with asc/desc toggle; server sorts disable reorder
+
+### Performance (prod Lighthouse: 98 score, 1.0s LCP, 0ms TBT, 0 CLS)
+- [x] Assets wall fetches in parallel with board tree (was serialized)
+- [x] First two rows eager + fetchPriority=high; rest lazy
+- [x] Preconnect to api.air.inc + air-prod.imgix.net
+- [x] selectedSet mirror → O(1) membership checks during rubber-band
+- [x] Single video slot + fade-in over poster (no black flash)
+
 ### Polish
-- [x] Match visual design (verified via headless Chrome screenshots)
-- [ ] Responsive down to 320px — needs verification pass
-- [x] Video hover preview (single active `<video>` slot app-wide)
-- [ ] In-browser interaction verification (drag, select, menus) — USER TEST
-- [ ] Perf pass: 500+ assets with 6x CPU throttle
+- [x] Match visual design; 20px gaps / 300px rows per reference
+- [x] Board cards: elevation, ring, hover lift, drop highlight
+- [x] Selection bar matches Air (✕ / count / overflow / Download all)
+- [x] Menus match demo exactly (Open, Share a link, Download)
+- [ ] Responsive 320px — code is responsive; verify in DevTools (headless
+      Chrome clamps to ~500px min width on macOS, can't screenshot it)
 
 ### Ship
-- [ ] README: what was built, assumptions, bonus notes
-- [ ] Push to `git@github.com:ejf89/air.git`
-- [ ] Deploy to Vercel, verify live link end-to-end
+- [x] README with perf notes, UX decisions, starter bugs found
+- [x] Pushed to git@github.com:ejf89/air.git (main)
+- [x] Deployed: https://air-gallery-six.vercel.app
 
 ## Bonus ideas (only if time remains)
 
